@@ -1,0 +1,22 @@
+# jupyter
+.ipynb_checkpoints/
+*checkpoint.ipynb
+
+# IDE
+.idea
+.vscode/settings.json
+
+# data + results
+data/raw
+data/prep/
+data/spectrograms-annotations
+
+# Python
+*__pycache__*
+*egg-info/
+dist/
+build/
+.venv
+
+# Mac
+.DS_Store
