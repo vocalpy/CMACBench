@@ -10,6 +10,9 @@
 data/raw
 data/prep/
 data/spectrograms-annotations
+results/models/
+results/predictions/
+results/analysis/
 
 # Python
 *__pycache__*
