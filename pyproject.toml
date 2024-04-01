@@ -3,8 +3,8 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "segnotators"
-description = "Code for paper on neural network models that jointly segment and annotate speech and animal sounds"
+name = "biosoundsegbench"
+description = "Code for paper on benchmarking methods for segmenting speech and animal sounds"
 authors = [{name = "David Nicholson", email = "nickledave@users.noreply.github.com"}]
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
