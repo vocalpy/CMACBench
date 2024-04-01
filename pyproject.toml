@@ -9,3 +9,10 @@ authors = [{name = "David Nicholson", email = "nickledave@users.noreply.github.c
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
 version = 0.1
+dependencies = [
+    "pandas==2.0.2",
+    "jupyterlab==4.0.1",
+    "seaborn==0.12.2",
+    "vak==1.0.0a3",
+    "vocalpy==0.8.2",
+]
