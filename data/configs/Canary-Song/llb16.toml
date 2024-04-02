@@ -29,7 +29,7 @@ patience = 4
 num_workers = 16
 device = "cuda"
 root_results_dir = "./results/models/Canary-Song/llb16/TweetyNet"
-dataset_path = "data/prep/Canary-Song/llb16/llb16_songs-vak-frame-classification-dataset-generated-240401_223658"
+dataset_path = "data/prep/Canary-Song/llb16/llb16_songs-vak-frame-classification-dataset-generated-240402_100023"
 
 [LEARNCURVE.train_dataset_params]
 window_size = 2000

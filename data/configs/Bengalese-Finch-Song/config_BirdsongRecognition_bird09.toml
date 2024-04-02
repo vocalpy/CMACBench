@@ -28,7 +28,7 @@ patience = 4
 num_workers = 4
 device = "cuda"
 root_results_dir = "./results/Bengalese_Finches/learncurve/BirdsongRecognition/Bird9"
-dataset_path = "data/prep/Bengalese-Finch-Song/Bird9/Bird9-vak-frame-classification-dataset-generated-240401_195922"
+dataset_path = "data/prep/Bengalese-Finch-Song/Bird9/Bird9-vak-frame-classification-dataset-generated-240402_094723"
 
 [LEARNCURVE.train_dataset_params]
 window_size = 176

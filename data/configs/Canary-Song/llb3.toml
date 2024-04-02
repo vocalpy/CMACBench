@@ -27,7 +27,7 @@ ckpt_step = 10000
 num_workers = 12
 device = "cuda"
 root_results_dir = "./results/models/Canary-Song/llb3/TweetyNet"
-dataset_path = "data/prep/Canary-Song/llb3/llb3_songs-vak-frame-classification-dataset-generated-240401_224400"
+dataset_path = "data/prep/Canary-Song/llb3/llb3_songs-vak-frame-classification-dataset-generated-240402_100754"
 
 [LEARNCURVE.train_dataset_params]
 window_size = 2000

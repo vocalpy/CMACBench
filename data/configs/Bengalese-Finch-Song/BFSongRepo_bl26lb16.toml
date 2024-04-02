@@ -28,7 +28,7 @@ patience = 4
 num_workers = 16
 device = "cuda"
 root_results_dir = "./results/models/Bengalese-Finch-Song/bl26lb16/TweetyNet"
-dataset_path = "data/prep/Bengalese-Finch-Song/bl26lb16/all-song-vak-frame-classification-dataset-generated-240401_194329"
+dataset_path = "data/prep/Bengalese-Finch-Song/bl26lb16/all-song-vak-frame-classification-dataset-generated-240402_092958"
 
 [LEARNCURVE.train_dataset_params]
 window_size = 2000
