@@ -1,0 +1,47 @@
+[PREP]
+dataset_type = "frame classification"
+input_type = "spect"
+labelset = "0123456"
+data_dir = "./data/raw/Bengalese-Finch-Song/BirdsongRecognition/Bird7"
+output_dir = "./data/prep/Bengalese-Finch-Song/Bird7"
+audio_format = "wav"
+annot_format = "simple-seq"
+test_dur = 400
+train_dur = 900
+val_dur = 80
+train_set_durs = [ 600,]
+num_replicates = 4
+
+[SPECT_PARAMS]
+fft_size = 512
+step_size = 64
+freq_cutoffs = [ 500, 10000,]
+
+[LEARNCURVE]
+models = "TweetyNet"
+normalize_spectrograms = true
+batch_size = 8
+num_epochs = 50
+val_step = 400
+ckpt_step = 200
+patience = 4
+num_workers = 4
+device = "cuda"
+root_results_dir = "./results/Bengalese_Finches/learncurve/BirdsongRecognition/Bird7"
+dataset_path = "data/prep/Bengalese-Finch-Song/Bird7/Bird7-vak-frame-classification-dataset-generated-240401_195733"
+
+[LEARNCURVE.train_dataset_params]
+window_size = 176
+
+[LEARNCURVE.val_transform_params]
+window_size = 176
+
+[LEARNCURVE.post_tfm_kwargs]
+majority_vote = true
+min_segment_dur = 0.01
+
+[TweetyNet.optimizer]
+lr = 0.001
+
+[TweetyNet.network]
+hidden_size = 256

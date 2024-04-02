@@ -1,0 +1,47 @@
+[PREP]
+dataset_type = "frame classification"
+input_type = "spect"
+labelset = "iabcdef"
+data_dir = "./data/raw/Bengalese-Finch-Song/BFSongRepo/bl26lb16/all-song"
+output_dir = "./data/prep/Bengalese-Finch-Song/bl26lb16"
+audio_format = "wav"
+annot_format = "simple-seq"
+test_dur = 400
+train_dur = 900
+val_dur = 80
+train_set_durs = [ 600,]
+num_replicates = 4
+
+[SPECT_PARAMS]
+fft_size = 512
+step_size = 64
+freq_cutoffs = [ 500, 10000,]
+
+[LEARNCURVE]
+model = "TweetyNet"
+normalize_spectrograms = "Yes"
+batch_size = 16
+num_epochs = 15
+val_step = 800
+ckpt_step = 500
+patience = 4
+num_workers = 16
+device = "cuda"
+root_results_dir = "./results/models/Bengalese-Finch-Song/bl26lb16/TweetyNet"
+dataset_path = "data/prep/Bengalese-Finch-Song/bl26lb16/all-song-vak-frame-classification-dataset-generated-240401_194329"
+
+[LEARNCURVE.train_dataset_params]
+window_size = 2000
+
+[LEARNCURVE.val_transform_params]
+window_size = 2000
+
+[LEARNCURVE.post_tfm_kwargs]
+majority_vote = true
+min_segment_dur = 0.02
+
+[TweetyNet.optimizer]
+lr = 0.001
+
+[TweetyNet.network]
+hidden_size = 256

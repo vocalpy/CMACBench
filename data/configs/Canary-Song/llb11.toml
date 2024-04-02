@@ -1,0 +1,48 @@
+[PREP]
+dataset_type = "frame classification"
+input_type = "spect"
+labelset = "range: 1-27"
+data_dir = "./data/raw/Canary-Song/tweetynet-canary/llb11_data/llb11_songs"
+output_dir = "./data/prep/Canary-Song/llb11"
+audio_format = "wav"
+annot_format = "simple-seq"
+test_dur = 5000
+train_dur = 10000
+val_dur = 250
+train_set_durs = [ 6000,]
+num_replicates = 4
+
+[SPECT_PARAMS]
+fft_size = 1024
+step_size = 64
+freq_cutoffs = [ 500, 10000,]
+thresh = 6.25
+
+[LEARNCURVE]
+model = "TweetyNet"
+normalize_spectrograms = "Yes"
+batch_size = 16
+num_epochs = 15
+val_step = 800
+ckpt_step = 500
+patience = 4
+num_workers = 16
+device = "cuda"
+root_results_dir = "./results/models/Canary-Song/llb11/TweetyNet"
+dataset_path = "data/prep/Canary-Song/llb11/llb11_songs-vak-frame-classification-dataset-generated-240401_221911"
+
+[LEARNCURVE.train_dataset_params]
+window_size = 64
+
+[LEARNCURVE.val_transform_params]
+window_size = 64
+
+[LEARNCURVE.post_tfm_kwargs]
+majority_vote = true
+min_segment_dur = 0.02
+
+[TweetyNet.optimizer]
+lr = 0.001
+
+[TweetyNet.network]
+hidden_size = 256
