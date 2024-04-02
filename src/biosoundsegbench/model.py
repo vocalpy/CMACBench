@@ -110,7 +110,6 @@ class FrameClassificationModel(lightning.LightningModule):
             out = out[:, :, padding_mask]
             y_pred = y_pred[:, padding_mask]
 
-
         y_labels = self.to_labels_eval(y.cpu().numpy())
         y_pred_labels = self.to_labels_eval(y_pred.cpu().numpy())
 
@@ -159,17 +158,23 @@ class FrameClassificationModel(lightning.LightningModule):
                 metric_name == "levenshtein"
                 or metric_name == "character_error_rate"
             ):
+                metric_val = metric_callable(y_pred_labels, y_labels)
+                # next line to avoid bug
+                metric_val = torch.tensor(metric_val).float().to(self.device)
                 self.log(
                     f"val_{metric_name}",
-                    metric_callable(y_pred_labels, y_labels),
+                    metric_val,
                     batch_size=1,
                     on_step=True,
                     sync_dist=True,
                 )
                 if self.post_tfm:
+                    metric_val = metric_callable(y_pred_tfm_labels, y_labels)
+                    # next line to avoid bug
+                    metric_val = torch.tensor(metric_val).float().to(self.device)
                     self.log(
                         f"val_{metric_name}_tfm",
-                        metric_callable(y_pred_tfm_labels, y_labels),
+                        metric_val,
                         batch_size=1,
                         on_step=True,
                         sync_dist=True,
@@ -235,9 +240,12 @@ class FrameClassificationModel(lightning.LightningModule):
                 voc.metrics.segmentation.ir.fscore,
             )
         ):
+            metric_val = metric_callable(hypothesis, reference, 0.004)[0]
+            # next line to avoid bug
+            metric_val = torch.tensor(metric_val).float().to(self.device)
             self.log(
                 f"val_{metric_name}",
-                metric_callable(hypothesis, reference, 0.004)[0],
+                metric_val,
                 batch_size=1,
                 on_step=True,
                 sync_dist=True,
