@@ -20,21 +20,21 @@ freq_cutoffs = [ 500, 10000,]
 [LEARNCURVE]
 models = "TweetyNet"
 normalize_spectrograms = true
-batch_size = 8
-num_epochs = 50
-val_step = 400
-ckpt_step = 200
+batch_size = 16
+num_epochs = 15
+val_step = 800
+ckpt_step = 500
 patience = 4
-num_workers = 4
+num_workers = 16
 device = "cuda"
 root_results_dir = "./results/Bengalese_Finches/learncurve/BirdsongRecognition/Bird4"
 dataset_path = "data/prep/Bengalese-Finch-Song/Bird4/Bird4-vak-frame-classification-dataset-generated-240402_094216"
 
 [LEARNCURVE.train_dataset_params]
-window_size = 176
+window_size = 2000
 
 [LEARNCURVE.val_transform_params]
-window_size = 176
+window_size = 2000
 
 [LEARNCURVE.post_tfm_kwargs]
 majority_vote = true

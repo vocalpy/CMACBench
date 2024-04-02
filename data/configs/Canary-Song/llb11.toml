@@ -13,14 +13,13 @@ train_set_durs = [ 6000,]
 num_replicates = 4
 
 [SPECT_PARAMS]
-fft_size = 1024
+fft_size = 512
 step_size = 64
 freq_cutoffs = [ 500, 10000,]
-thresh = 6.25
 
 [LEARNCURVE]
 model = "TweetyNet"
-normalize_spectrograms = "Yes"
+normalize_spectrograms = true
 batch_size = 16
 num_epochs = 15
 val_step = 800
@@ -29,7 +28,7 @@ patience = 4
 num_workers = 16
 device = "cuda"
 root_results_dir = "./results/models/Canary-Song/llb11/TweetyNet"
-dataset_path = "data/prep/Canary-Song/llb11/llb11_songs-vak-frame-classification-dataset-generated-240402_094957"
+dataset_path = "data/prep/Canary-Song/llb11/llb11_songs-vak-frame-classification-dataset-generated-240402_110820"
 
 [LEARNCURVE.train_dataset_params]
 window_size = 64

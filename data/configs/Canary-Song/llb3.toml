@@ -19,12 +19,13 @@ freq_cutoffs = [ 500, 10000,]
 
 [LEARNCURVE]
 models = "TweetyNet"
-normalize_spectrograms = false
-batch_size = 8
-num_epochs = 1
-val_step = 5000
-ckpt_step = 10000
-num_workers = 12
+normalize_spectrograms = true
+batch_size = 16
+num_epochs = 15
+val_step = 800
+ckpt_step = 500
+patience = 4
+num_workers = 16
 device = "cuda"
 root_results_dir = "./results/models/Canary-Song/llb3/TweetyNet"
 dataset_path = "data/prep/Canary-Song/llb3/llb3_songs-vak-frame-classification-dataset-generated-240402_100754"
