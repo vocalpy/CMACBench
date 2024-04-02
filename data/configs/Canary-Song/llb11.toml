@@ -31,10 +31,10 @@ root_results_dir = "./results/models/Canary-Song/llb11/TweetyNet"
 dataset_path = "data/prep/Canary-Song/llb11/llb11_songs-vak-frame-classification-dataset-generated-240402_110820"
 
 [LEARNCURVE.train_dataset_params]
-window_size = 64
+window_size = 2000
 
 [LEARNCURVE.val_transform_params]
-window_size = 64
+window_size = 2000
 
 [LEARNCURVE.post_tfm_kwargs]
 majority_vote = true
