@@ -20,7 +20,7 @@ freq_cutoffs = [ 500, 10000,]
 [LEARNCURVE]
 models = "TweetyNet"
 normalize_spectrograms = true
-batch_size = 16
+batch_size = 32
 num_epochs = 15
 val_step = 800
 ckpt_step = 500
