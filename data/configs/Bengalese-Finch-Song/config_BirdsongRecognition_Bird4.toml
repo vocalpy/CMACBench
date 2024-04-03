@@ -18,7 +18,7 @@ step_size = 64
 freq_cutoffs = [ 500, 10000,]
 
 [LEARNCURVE]
-models = "TweetyNet"
+model = "TweetyNet"
 normalize_spectrograms = true
 batch_size = 32
 num_epochs = 15
@@ -27,7 +27,7 @@ ckpt_step = 500
 patience = 4
 num_workers = 16
 device = "cuda"
-root_results_dir = "./results/Bengalese_Finches/learncurve/BirdsongRecognition/Bird4"
+root_results_dir = "./results/models/Bengalese-Finch-Song/Bird4"
 dataset_path = "data/prep/Bengalese-Finch-Song/Bird4/Bird4-vak-frame-classification-dataset-generated-240402_094216"
 
 [LEARNCURVE.train_dataset_params]
