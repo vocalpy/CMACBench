@@ -259,6 +259,37 @@ class FrameClassificationModel(lightning.LightningModule):
                     sync_dist=True,
                 )
 
+    def predict_step(self, batch: tuple, batch_idx: int):
+        """Perform one prediction step.
+
+        Parameters
+        ----------
+        batch : tuple
+            A batch from a dataloader.
+        batch_idx : int
+            The index of this batch in the dataloader.
+
+        Returns
+        -------
+        y_pred : dict
+            Where the key is "frames_path" and the value
+            is the output of the network;
+            "frames_path" is the path to the file
+            containing the frames
+            for which a prediction was generated.
+        """
+        x, frames_path = batch["frames"].to(self.device), batch["frames_path"]
+        if isinstance(frames_path, list) and len(frames_path) == 1:
+            frames_path = frames_path[0]
+        # TODO: fix this weirdness. Diff't collate_fn?
+        if x.ndim in (5, 4):
+            if x.shape[0] == 1:
+                x = torch.squeeze(x, dim=0)
+        else:
+            raise ValueError(f"invalid shape for x: {x.shape}")
+        y_pred = self.network(x)
+        return {frames_path: y_pred}
+
     def configure_optimizers(self):
         return torch.optim.Adam(lr=0.003, params=self.parameters())
 
