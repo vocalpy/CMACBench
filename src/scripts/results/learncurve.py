@@ -44,6 +44,7 @@ def main(toml_path):
     network_kwargs = model_config["network"]
     loss_name = model_config["loss"].get("name", "ce")
     loss_class = LOSS_NAME_CLASS_MAP[loss_name]
+    loss_kwargs = model_config["loss"]
 
     # HACK: window_size is a train_dataset_param and a val_transform_param
     window_size = cfg.learncurve.train_dataset_params["window_size"]
