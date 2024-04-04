@@ -8,5 +8,6 @@ from . import (
     learncurve,
     loss,
     model,
+    predict,
     train,
 )
