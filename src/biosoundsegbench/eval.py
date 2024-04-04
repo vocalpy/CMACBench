@@ -27,6 +27,7 @@ def eval_frame_classification_model(
     network_class,
     network_kwargs,
     loss_class,
+    loss_kwargs,
     checkpoint_path,
     output_dir,
 ):
@@ -80,13 +81,13 @@ def eval_frame_classification_model(
         **network_kwargs
     )
 
-    loss = loss_class()
+    loss = loss_class(**loss_kwargs)
 
     metrics = {
         "acc": vak.metrics.Accuracy(),
         "levenshtein": vak.metrics.Levenshtein(),
         "character_error_rate": vak.metrics.CharacterErrorRate(),
-        "loss": loss_class(),
+        "loss": loss,
     }
 
     model = FrameClassificationModel(
