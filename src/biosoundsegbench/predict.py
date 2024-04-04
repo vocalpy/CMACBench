@@ -13,18 +13,23 @@ import torch.utils.data
 from tqdm import tqdm
 import vak
 
+from .model import FrameClassificationModel
+
 
 def predict_with_frame_classification_model(
-    model_name: str,
-    model_config: dict,
     dataset_path,
-    checkpoint_path,
     labelmap_path,
-    num_workers=2,
-    transform_params: dict | None = None,
-    dataset_params: dict | None = None,
+    spect_scaler_path,
+    window_size,
+    model_name,
+    num_workers,
+    post_tfm_kwargs,
+    network_class,
+    network_kwargs,
+    loss_class,
+    loss_kwargs,
+    checkpoint_path,
     timebins_key="t",
-    spect_scaler_path=None,
     device=None,
     annot_csv_filename=None,
     output_dir=None,
@@ -132,14 +137,12 @@ def predict_with_frame_classification_model(
         device = vak.common.device.get_default_device()
 
     # ---------------- load data for prediction ------------------------------------------------------------------------
-    if spect_scaler_path:
-        spect_standardizer = joblib.load(spect_scaler_path)
-    else:
-        spect_standardizer = None
+    spect_standardizer = joblib.load(spect_scaler_path)
 
-    if transform_params is None:
-        transform_params = {}
-    transform_params.update({"spect_standardizer": spect_standardizer})
+    transform_params = {
+        "spect_standardizer": spect_standardizer,
+        "window_size": window_size,
+    }
     item_transform = vak.transforms.defaults.get_default_transform(
         model_name, "predict", transform_params
     )
@@ -190,12 +193,28 @@ def predict_with_frame_classification_model(
     if len(input_shape) == 4:
         input_shape = input_shape[1:]
 
-    model = vak.models.get(
-        model_name,
-        model_config,
+    network = network_class(
         num_classes=len(labelmap),
-        input_shape=input_shape,
+        num_freqbins=input_shape[1],
+        num_input_channels=input_shape[0],
+        **network_kwargs,
+    )
+
+    loss = loss_class(**loss_kwargs)
+
+    metrics = {
+        "acc": vak.metrics.Accuracy(),
+        "levenshtein": vak.metrics.Levenshtein(),
+        "character_error_rate": vak.metrics.CharacterErrorRate(),
+        "loss": loss,
+    }
+
+    model = FrameClassificationModel(
+        network=network,
+        loss=loss,
+        metrics=metrics,
         labelmap=labelmap,
+        post_tfm=post_tfm
     )
 
     # ---------------- do the actual predicting --------------------------------------------------------------------
