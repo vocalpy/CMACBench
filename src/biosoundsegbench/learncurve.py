@@ -21,6 +21,7 @@ def learning_curve(
     network_class,
     network_kwargs,
     loss_class,
+    loss_kwargs,
     num_epochs,
     val_step,
     ckpt_step,
@@ -78,6 +79,7 @@ def learning_curve(
             network_class,
             network_kwargs,
             loss_class,
+            loss_kwargs,
             ckpt_step,
             patience,
             val_step,
@@ -121,6 +123,7 @@ def learning_curve(
             network_class,
             network_kwargs,
             loss_class,
+            loss_kwargs,
             ckpt_path,
             results_path_this_replicate,
         )
