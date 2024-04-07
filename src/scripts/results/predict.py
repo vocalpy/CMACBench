@@ -38,27 +38,35 @@ def main(toml_path):
     network_kwargs = model_config["network"]
     loss_name = model_config["loss"].get("name", "ce")
     loss_class = LOSS_NAME_CLASS_MAP[loss_name]
+    loss_kwargs = model_config["loss"]
 
     # HACK: window_size is a train_dataset_param and a val_transform_param
     window_size = cfg.learncurve.train_dataset_params["window_size"]
 
     biosoundsegbench.predict.predict_with_frame_classification_model(
-        model_name=model_name,
-        model_config=model_config,
         dataset_path=cfg.predict.dataset_path,
-        checkpoint_path=cfg.predict.checkpoint_path,
         labelmap_path=cfg.predict.labelmap_path,
-        num_workers=cfg.predict.num_workers,
-        transform_params=cfg.predict.transform_params,
-        dataset_params=cfg.predict.dataset_params,
-        timebins_key=cfg.predict.timebins_key,
         spect_scaler_path=cfg.predict.spect_scaler_path,
+        window_size=window_size,
+        model_name=model_name,
+        num_workers=cfg.predict.num_workers,
+        network_class=network_class,
+        network_kwargs=network_kwargs,
+        loss_class=loss_class,
+        loss_kwargs=loss_kwargs,
+        checkpoint_path=cfg.predict.checkpoint_path,
         device=cfg.predict.device,
         annot_csv_filename=cfg.predict.annot_csv_filename,
+        timebins_key=cfg.predict.timebins_key,
         output_dir=cfg.predict.output_dir,
         min_segment_dur=cfg.predict.min_segment_dur,
         majority_vote=cfg.predict.majority_vote,
         save_net_outputs=cfg.predict.save_net_outputs,
+
+        # transform_params=cfg.predict.transform_params,
+        # dataset_params=cfg.predict.dataset_params,
+
+
     )
 
 
