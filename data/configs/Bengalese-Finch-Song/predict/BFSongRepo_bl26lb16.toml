@@ -1,0 +1,42 @@
+[PREDICT]
+spect_scaler_path = "/home/user/results_181014_194418/spect_scaler"
+checkpoint_path = "~/Documents/repos/coding/birdsong/TweetyNet/results/BFSongRepository/bl26lb16/results_200620_164245/TweetyNet/checkpoints/max-val-acc-checkpoint.pt"
+labelmap_path = "~/Documents/repos/coding/birdsong/TweetyNet/results/BFSongRepository/bl26lb16/results_200620_164245/labelmap.json"
+model = "TweetyNet"
+batch_size = 11
+num_workers = 16
+device = "cuda"
+output_dir = "./tests/data_for_tests/generated/results/predict/audio_cbin_annot_notmat/TweetyNet"
+annot_csv_filename = "bl26lb16.041912.annot.csv"
+
+[PREDICT.transform_params]
+window_size = 88
+
+[LEARNCURVE]
+model = "TweetyNet"
+normalize_spectrograms = "Yes"
+batch_size = 16
+num_epochs = 15
+val_step = 800
+ckpt_step = 500
+patience = 4
+num_workers = 16
+device = "cuda"
+root_results_dir = "./results/models/Bengalese-Finch-Song/bl26lb16/TweetyNet"
+dataset_path = "data/prep/Bengalese-Finch-Song/bl26lb16/all-song-vak-frame-classification-dataset-generated-240402_092958"
+
+[LEARNCURVE.train_dataset_params]
+window_size = 2000
+
+[LEARNCURVE.val_transform_params]
+window_size = 2000
+
+[LEARNCURVE.post_tfm_kwargs]
+majority_vote = true
+min_segment_dur = 0.02
+
+[TweetyNet.optimizer]
+lr = 0.001
+
+[TweetyNet.network]
+hidden_size = 256
