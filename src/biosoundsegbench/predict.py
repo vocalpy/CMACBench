@@ -23,7 +23,6 @@ def predict_with_frame_classification_model(
     window_size,
     model_name,
     num_workers,
-    post_tfm_kwargs,
     network_class,
     network_kwargs,
     loss_class,
