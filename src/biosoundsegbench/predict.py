@@ -13,7 +13,7 @@ import torch.utils.data
 from tqdm import tqdm
 import vak
 
-from .model import FrameClassificationModel
+from .models import FrameClassificationModel
 
 
 def predict_with_frame_classification_model(

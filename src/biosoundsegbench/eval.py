@@ -13,7 +13,7 @@ import torch
 import pytorch_lightning as lightning
 import vak
 
-from .model import FrameClassificationModel
+from .models import FrameClassificationModel
 
 
 def eval_frame_classification_model(

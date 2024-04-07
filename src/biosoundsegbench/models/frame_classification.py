@@ -10,7 +10,7 @@ import pytorch_lightning as lightning
 import vak
 import vocalpy as voc
 
-from .loss import CrossEntropyWithGaussianSimilarityTruncatedMSE
+from ..loss import CrossEntropyWithGaussianSimilarityTruncatedMSE
 
 
 class FrameClassificationModel(lightning.LightningModule):
