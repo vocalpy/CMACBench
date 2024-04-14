@@ -1,6 +1,8 @@
+from __future__ import annotations
+
+from typing import Mapping
+
 import numpy as np
-import torchvision
-import vak
 
 from . import functional as F
 
@@ -19,6 +21,25 @@ class FrameLabelsToBoundaryOnehot:
         boundary_onehot = np.insert(boundary_onehot, 0, 1)
 
         return boundary_onehot
+
+
+class FrameLabelsMultiToBinary:
+    """Converts vector of frame labels with multiple classes
+    to a vector for binary classification.
+    """
+    def __init__(self, labelmap: Mapping, bg_class_name='unlabeled'):
+        try:
+            self.bg_class_int = labelmap[bg_class_name]
+        except KeyError as e:
+            raise KeyError(
+                f"The background class name `bg_class_name={bg_class_name}` "
+                f"is not a key in `labelmap`; keys in `labelmap` are: {list(labelmap.keys())}"
+            ) from e
+        self.labelmap = labelmap
+        self.bg_class_name = bg_class_name
+
+    def __call__(self, frame_labels):
+        return (frame_labels != self.bg_class_int).astype(int)
 
 
 class ViewAsWindowBatch:
