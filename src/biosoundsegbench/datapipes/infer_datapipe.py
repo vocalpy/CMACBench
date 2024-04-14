@@ -11,7 +11,15 @@ import vak
 from vak.datasets.frame_classification import constants, helper
 
 
-class EvalDatapipe:
+class InferDatapipe:
+    """Datapipe used for inference from models.
+
+    Used to evaluate models and generate predictions from models.
+    During inference, we convert spectrograms / series of frames
+    into batches of consecutive non-overlapping windows.
+    We then flatten the output of the model along the time dimension
+    to recover outputs for the entire spectrogram or series of frames.
+    """
     def __init__(
         self,
         dataset_path: str | pathlib.Path,

@@ -12,11 +12,8 @@ from vak.datasets.frame_classification import constants, helper
 from vak.datasets.frame_classification.window_dataset import get_window_inds
 
 
-from ...transforms import FrameLabelsToBoundaryOnehot
-
-
 class TrainDatapipe:
-    """Datapipe used to train models on boundary detection task.
+    """Datapipe used to train models.
 
     Durining training, we build batches from random grabs of windows.
     """
@@ -32,8 +29,7 @@ class TrainDatapipe:
         stride: int = 1,
         subset: str | None = None,
         window_inds: npt.NDArray | None = None,
-        transform: Callable | None = None,
-        target_transform: Callable = FrameLabelsToBoundaryOnehot(),
+        item_transform: Callable | None = None,
     ):
         self.dataset_path = pathlib.Path(dataset_path)
 
@@ -62,8 +58,7 @@ class TrainDatapipe:
                 sample_ids.shape[-1], window_size, stride
             )
         self.window_inds = window_inds
-        self.transform = transform
-        self.target_transform = target_transform
+        self.item_transform = item_transform
 
         tmp_x_ind = 0
         tmp_item = self.__getitem__(tmp_x_ind)
@@ -134,15 +129,8 @@ class TrainDatapipe:
         frame_labels = frame_labels[
             inds_in_sample : inds_in_sample + self.window_size  # noqa: E203
         ]
-        if self.transform:
-            frames = self.transform(frames)
-
-        boundary_onehot = self.target_transform(frame_labels)
-
-        return {
-            'frames': frames,
-            'boundary_onehot': boundary_onehot
-        }
+        item = self.item_transform(frames, frame_labels)
+        return item
 
     def __len__(self):
         """number of batches"""
