@@ -1,2 +1,2 @@
-from . import boundary_detection
+from . import item
 from .transforms import FrameLabelsToBoundaryOnehot, ViewAsWindowBatch
