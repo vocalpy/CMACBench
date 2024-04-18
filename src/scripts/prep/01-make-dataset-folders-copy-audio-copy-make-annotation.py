@@ -261,8 +261,6 @@ for bird_id in BIRDSONGREC_BIRD_IDS:
 
 # ## Canary Song
 
-# ### TweetyNet dataset
-
 # In[19]:
 
 
@@ -275,6 +273,8 @@ CANARY_DATA_DST.mkdir(exist_ok=True)
 
 CANARY_RAW_DATA = RAW_DATA_ROOT / "Canary-Song"
 
+
+# ### TweetyNet dataset
 
 # In[21]:
 
@@ -319,7 +319,7 @@ for bird_id in TWEETYNET_BIRD_IDS:
 # Make annotation files.
 # We convert from `"generic-seq"` (single file for all annotations) to `"simple-seq"` (one annotation file per one audio file)
 
-# In[25]:
+# In[24]:
 
 
 scribe = crowsetta.Transcriber(format='generic-seq')
@@ -347,7 +347,7 @@ for bird_id in TWEETYNET_BIRD_IDS:
     df.to_csv(annot_csv_dst, index=False)
 
     annots = scribe.from_file(annot_csv_dst).to_annot()
-    
+
     bird_id_dst = CANARY_DATA_DST / f"tweetynet-{bird_id}"
     assert bird_id_dst.exists()
 
@@ -368,7 +368,7 @@ for bird_id in TWEETYNET_BIRD_IDS:
 # For this dataset, not every audio file has an annotation file.
 # We do the clean up step of removing audio files with annootations here.
 
-# In[26]:
+# In[25]:
 
 
 for bird_id in TWEETYNET_BIRD_IDS:
@@ -400,32 +400,32 @@ for bird_id in TWEETYNET_BIRD_IDS:
 
 # ### Jourjine et al 2023 dataset
 
-# In[18]:
+# In[26]:
 
 
 MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Calls"
 
 
-# In[19]:
+# In[27]:
 
 
 MOUSE_DATA_DST = DATASET_ROOT / "Mouse-Pup-Calls"
 MOUSE_DATA_DST.mkdir(exist_ok=True)
 
 
-# In[20]:
+# In[28]:
 
 
 JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
 
 
-# In[21]:
+# In[29]:
 
 
 ANNOT_DIR = JOURJINE_ET_AL_2023_DATA / "processed_data" / "supplemental_figure_5"
 
 
-# In[22]:
+# In[30]:
 
 
 segs_csv_path = ANNOT_DIR / "all_development_vocs_with_start_stop_times.csv"
@@ -436,19 +436,7 @@ segs_df = pd.read_csv(segs_csv_path)
 # 
 # We treat this as a binary classificaiton task: "vocalization" or "no vocalization". So we just label all the detected segments as "v" (for "vocalization")
 
-# In[23]:
-
-
-len(segs_df)
-
-
-# In[27]:
-
-
-DRY_RUN = False
-
-
-# In[28]:
+# In[31]:
 
 
 for source_file in tqdm(segs_df.source_file.unique()):
@@ -470,87 +458,253 @@ for source_file in tqdm(segs_df.source_file.unique()):
             )
             if not DRY_RUN:
                 shutil.copy(wav_path, species_id_dst)
-                csv_path = species_id_dst / f"{source_file}.calls.csv"
+                csv_path = species_id_dst / f"{source_file}.call.csv"
                 simple_seq.to_file(csv_path)
 
 
-# In[6]:
+# ## Zebra finch song
+
+# In[32]:
 
 
-import vocalpy as voc
+ZB_DATA_DST = DATASET_ROOT / "Zebra-Finch-Song"
+ZB_DATA_DST.mkdir(exist_ok=True)
 
-root = "data/BioSoundSegBench/Mouse-Pup-Calls/jourjine-et-al-2023-BW"
-wav_paths = voc.paths.from_dir(root, "wav")
-csv_paths = voc.paths.from_dir(root, "csv")
+
+# In[33]:
+
+
+ZB_RAW_DATA = RAW_DATA_ROOT / "Zebra-Finch-Song"
+
+
+# ### Steinfath et al. 2021 dataset, from AVA dataset
+
+# In[34]:
+
+
+STEINFATH_ET_AL_2021_RAW_DATA = ZB_RAW_DATA / "Steinfath-et-al-2021-DAS-Zebra-finch-train-and-test-data"
+
+
+# In[35]:
+
+
+ZB_BIRD_ID = "blu285"
+
+
+# In[36]:
+
+
+print(
+    f"Copying audio and annotation files for bird ID {ZB_BIRD_ID} from Steinfath et al. 2021 dataset"
+)
+# only one zebra finch in the dataset, 
+# because it's so rare to have zebra finch data </s>
+bird_id_dir = STEINFATH_ET_AL_2021_RAW_DATA
+assert bird_id_dir.exists(), f"Couldn't find bird_id_dir: {bird_id_dir}"
+
+bird_id_dst = ZB_DATA_DST / f"Steinfath-et-al-{ZB_BIRD_ID}"
+bird_id_dst.mkdir(exist_ok=True)
+
+
+# bfsongrepo is split up by days; we throw away that split here
+print(
+    f"Copying audio and annotation files from day: {bird_id_dir.name}"
+)
+wav_paths = sorted(bird_id_dir.glob("*wav"))
+print(
+    f"Found {len(wav_paths)} audio files."
+)
+csv_paths = sorted(bird_id_dir.glob("*csv"))
+print(
+    f"Found {len(csv_paths)} annotation files."
+)
+wav_paths_filtered = []
+csv_paths_filtered = []
+for wav_path in wav_paths:
+    csv_path_that_should_exist = wav_path.parent / (wav_path.stem + '_annotations.csv')
+    if csv_path_that_should_exist in csv_paths:
+        df = pd.read_csv(csv_path_that_should_exist)
+        if len(df) > 0:
+            # at least one annotation has no annotated segments in it; we skip
+            wav_paths_filtered.append(wav_path)
+            csv_paths_filtered.append(csv_path_that_should_exist)
+print(
+    "After filtering audio files by whether or not they have a valid annotation file, "
+    f"there are {len(wav_paths_filtered)} audio files and {len(csv_paths_filtered)} annotation files."
+)
+if not DRY_RUN:
+    pbar = tqdm(
+        zip(wav_paths_filtered, csv_paths_filtered)
+    )
+    for wav_path, csv_path in pbar:
+        shutil.copy(wav_path, bird_id_dst)
+        # NOTE we rename to include the unit in the annotation file name
+        simple_seq = crowsetta.formats.seq.SimpleSeq.from_file(
+            csv_path,
+            columns_map={
+                'start_seconds': 'onset_s', 'stop_seconds': 'offset_s', 'name': 'label'
+            },
+        )
+        csv_path_dst = bird_id_dst / (wav_path.name + '.syllable.csv')
+        simple_seq.to_file(csv_path_dst)
+
+
+# ## Human Speech
+
+# In[37]:
+
+
+SPEECH_DATA_DST = DATASET_ROOT / "Human-Speech"
+SPEECH_DATA_DST.mkdir(exist_ok=True)
+
+
+# In[38]:
+
+
+SPEECH_RAW_DATA = RAW_DATA_ROOT / "Human-Speech"
+
+
+# ### TIMIT Corpus + NLTK Sample
+# 
+# For corpus sample in NLTK:
+# 1. Copy wav files, keep track of dialect regions + speaker IDs
+# 2. Convert annotations to csv: phoneme + word
+# 
+# For full corpus:
+# 1. Only copy data NOT in sample in NLTK--we will use this as the training data, and use the NLTK sample as the test data.
+# 2. Copy wav files, throw away their train/test split but make sure we keep IDs + dialect regions.
+# 3. Convert annotations to csv: phoneme + word
+
+# In[39]:
+
+
+TIMIT_NLTK_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-sample-from-NLTK" / "timit"
+
+
+# In[40]:
+
+
+DATA_DIRS = [
+    subdir for subdir in TIMIT_NLTK_RAW.iterdir()
+    if subdir.is_dir() and subdir.name.startswith('dr')
+]
+
+
+# In[41]:
+
+
+from collections import defaultdict
+# keys will be dialect region, 
+# values will be list of speaker IDs
+NLTK_DR_SPKR_MAP = defaultdict(list)
+
+for data_dir in DATA_DIRS:
+    dir_name_upper = data_dir.name.upper()
+    dialect_region, speaker_id = dir_name_upper.split('-')
+    NLTK_DR_SPKR_MAP[dialect_region].append(speaker_id)
+
+    wav_paths = sorted(data_dir.glob('*wav'))
+    wrd_paths = sorted(data_dir.glob('*wrd'))
+    phn_paths = sorted(data_dir.glob('*phn'))
+    assert len(wav_paths) == len(wrd_paths) == len(phn_paths)
+
+    dst = SPEECH_DATA_DST / f"TIMIT-NLTK-{dialect_region}-{speaker_id}"
+    dst.mkdir(exist_ok=True)
+    for wav_path, wrd_path, phn_path in zip(
+        wav_paths, wrd_paths, phn_paths
+    ):
+        shutil.copy(wav_path, dst)
+
+        phn_seq = crowsetta.formats.seq.Timit.from_file(phn_path).to_seq()
+        phn_simpleseq = crowsetta.formats.seq.SimpleSeq(
+            onsets_s=phn_seq.onsets_s,
+            offsets_s=phn_seq.offsets_s,
+            labels=phn_seq.labels,
+            annot_path='dummy',
+        )
+        phn_csv_dst = dst / f"{wav_path.name}.phoneme.csv"
+        phn_simpleseq.to_file(phn_csv_dst)
+
+        wrd_seq = crowsetta.formats.seq.Timit.from_file(wrd_path).to_seq()
+        wrd_simpleseq = crowsetta.formats.seq.SimpleSeq(
+            onsets_s=wrd_seq.onsets_s,
+            offsets_s=wrd_seq.offsets_s,
+            labels=wrd_seq.labels,
+            annot_path='dummy',
+        )
+        wrd_csv_dst = dst / f"{wav_path.name}.word.csv"
+        wrd_simpleseq.to_file(wrd_csv_dst)
+
+
+# In[42]:
+
+
+DATA_WE_CANT_SHARE = DATA_DIR / "DATA-WE-CANT-SHARE"
+DATA_WE_CANT_SHARE.mkdir(exist_ok=True)
+
+
+# In[43]:
+
+
+HUMAN_SPEECH_WE_CANT_SHARE = DATA_WE_CANT_SHARE / "Human-Speech"
+HUMAN_SPEECH_WE_CANT_SHARE.mkdir(exist_ok=True)
 
 
 # In[44]:
 
 
-def plot_pup(ind=0, dur=5.0, tlim=[2., 4.]):
-    sound = voc.Audio.read(wav_paths[ind])
-    sound = voc.Audio(
-        data=sound.data[:int(dur * sound.samplerate)],
-        samplerate=sound.samplerate,
-    )
-    spect = voc.spectrogram(sound)
-    annot = voc.Annotation.read(csv_paths[ind], format='simple-seq')
-    voc.plot.annotated_spectrogram(spect, annot, tlim=tlim)
+TIMIT_FULL_CORPUS_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-full" / "data"
 
 
-# In[14]:
+# In[45]:
 
 
-n_plot = 0
+TIMIT_DATA_DIRS = sorted(TIMIT_FULL_CORPUS_RAW.glob("T*/DR*/*/"))
 
-for ind, csv_path in enumerate(csv_paths):
-    if n_plot > 3:
-        break
-    annot = voc.Annotation.read(csv_path, format='simple-seq')
-    if 'USV' in annot.data.seq.labels:
-        usv_ind = np.nonzero(annot.data.seq.labels == 'USV')[0][0]
-        onset = annot.data.seq.onsets_s[usv_ind]
-        dur = onset + 2
-        n_plot += 1
-        sound = voc.Audio.read(wav_paths[ind])
-        start_ind = int((onset - 2.0) * sound.samplerate)
-        stop_ind = int((onset + 2.0) * sound.samplerate)
-        sound = voc.Audio(
-            data=sound.data[start_ind:stop_ind],
-            samplerate=sound.samplerate,
+
+# In[46]:
+
+
+n_skipped = 0
+
+
+for data_dir in TIMIT_DATA_DIRS:
+    speaker_id = data_dir.name
+    dialect_region = data_dir.parents[0].name
+    if speaker_id in NLTK_DR_SPKR_MAP[dialect_region]:
+        print(f"Skipping speaker {speaker_id} because they are in NLTK TIMIT corpus sample")
+        continue
+    
+    wav_paths = sorted(data_dir.glob('*wav'))
+    wrd_paths = sorted(data_dir.glob('*WRD'))
+    phn_paths = sorted(data_dir.glob('*PHN'))
+    assert len(wav_paths) == len(wrd_paths) == len(phn_paths)
+
+    dst = HUMAN_SPEECH_WE_CANT_SHARE / f"TIMIT-full-corpus-{dialect_region}-{speaker_id}"
+    dst.mkdir(exist_ok=True)
+    for wav_path, wrd_path, phn_path in zip(
+        wav_paths, wrd_paths, phn_paths
+    ):
+        wav_path_dst = dst / wav_path.stem.replace('.WAV', '.wav')
+        shutil.copy(wav_path, wav_path_dst)
+
+        phn_seq = crowsetta.formats.seq.Timit.from_file(phn_path).to_seq()
+        phn_simpleseq = crowsetta.formats.seq.SimpleSeq(
+            onsets_s=phn_seq.onsets_s,
+            offsets_s=phn_seq.offsets_s,
+            labels=phn_seq.labels,
+            annot_path='dummy',
         )
-        spect = voc.spectrogram(sound)
-        annot = voc.Annotation(
-            data=crowsetta.Annotation(
-                seq=crowsetta.Sequence.from_keyword(
-                    onsets_s=annot.data.seq.onsets_s - (onset - 2.0),
-                    offsets_s=annot.data.seq.offsets_s - (onset -2.0),
-                    labels=annot.data.seq.labels,
-                ),
-                annot_path='dummy',
-            ),
-            path='dummy',
+        phn_csv_dst = dst / f"{wav_path_dst.name}.phoneme.csv"
+        phn_simpleseq.to_file(phn_csv_dst)
+
+        wrd_seq = crowsetta.formats.seq.Timit.from_file(wrd_path).to_seq()
+        wrd_simpleseq = crowsetta.formats.seq.SimpleSeq(
+            onsets_s=wrd_seq.onsets_s,
+            offsets_s=wrd_seq.offsets_s,
+            labels=wrd_seq.labels,
+            annot_path='dummy',
         )
-        voc.plot.annotated_spectrogram(spect, annot, tlim=[0, 4.0])
+        wrd_csv_dst = dst / f"{wav_path_dst.name}.word.csv"
+        wrd_simpleseq.to_file(wrd_csv_dst)
 
-
-# ## Zebra finch song
-
-# ### Steinfath et al dataset, from AVA dataset
-
-# In[ ]:
-
-
-
-
-
-# ## Human Speech
-
-# ### TIMIT
-
-# ### TIMIT Corpus + NLTK Subset
-# 
-# 1. Copy wav files, throw away their train/test split but make sure we keep IDs + dialect regions
-# 2. Convert annotations to csv: phoneme + word
-
-# ### TIMIT Corpus NLTK Subset
