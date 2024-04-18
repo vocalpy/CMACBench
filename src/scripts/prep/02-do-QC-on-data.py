@@ -115,7 +115,7 @@ def qc_annot(data_dir, csv_ext=".syllable.csv"):
     return first_onset_lt_zero, any_onset_lt_zero, any_offset_lt_zero, invalid_starts_stops
 
 
-# In[9]:
+# In[8]:
 
 
 SPECIES_CSV_EXT_MAP = {
@@ -171,7 +171,7 @@ for species, csv_ext in SPECIES_CSV_EXT_MAP.items():
 # 
 # For the bird datasets in particular we need to remove cases where a sound is labeled with a label not in the set of labels we use during training, since we will always get that one wrong.
 
-# In[10]:
+# In[9]:
 
 
 import vak
@@ -204,7 +204,7 @@ for species in SPECIES_ID_LABELSETS_MAP.keys():
     SPECIES_ID_LABELSETS_MAP[species] = id_labelset_map
 
 
-# In[11]:
+# In[ ]:
 
 
 for species, id_labelset_map in SPECIES_ID_LABELSETS_MAP.items():

@@ -366,7 +366,7 @@ for bird_id in TWEETYNET_BIRD_IDS:
 
 
 # For this dataset, not every audio file has an annotation file.
-# We do the clean up step of removing audio files with annootations here.
+# We do the clean up step of removing audio files with annotations here.
 
 # In[25]:
 
@@ -389,7 +389,7 @@ for bird_id in TWEETYNET_BIRD_IDS:
 
     print(
         f"Found {len(wav_paths)} audio files and {len(csv_paths)} annotation files."
-        f"Remvoing {len(wav_without_annot_csv)} files without annotations."
+        f"Removing {len(wav_without_annot_csv)} files without annotations."
     )
     if not DRY_RUN:
         for wav_path in wav_without_annot_csv:
