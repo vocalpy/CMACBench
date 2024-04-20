@@ -7,12 +7,13 @@
 .vscode/settings.json
 
 # data + results
+data/BioSoundSegBench
+data/DATA-WE-CANT-SHARE
 data/raw
 data/prep/
-data/spectrograms-annotations
+results/analysis/
 results/models/
 results/predictions/
-results/analysis/
 
 # Python
 *__pycache__*
