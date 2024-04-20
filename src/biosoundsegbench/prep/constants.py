@@ -28,6 +28,16 @@ BFSONGREPO_BIRD_IDS = (
     "or60yw70",
 )
 
+# ------------- Birdsong-Recognition dataset
+BIRDSONGREC_RAW_DATA = BF_RAW_DATA / "BirdsongRecognition"
+BIRDSONGREC_BIRD_IDS = (
+    "Bird0",
+    "Bird4",
+    "Bird7",
+    "Bird9",
+)
+BIRDSONGREC_ANNOT_ROOT = BIRDSONGREC_RAW_DATA / "annotation_tweetynet"
+
 # --------- Canary song
 CANARY_RAW_DATA = RAW_DATA_ROOT / "Canary-Song"
 
