@@ -5,7 +5,7 @@
 # 
 # Uses raw data--audio and annotations--to make inputs and targets for neural network models.
 
-# In[1]:
+# In[2]:
 
 
 import pathlib
@@ -22,33 +22,33 @@ import vocalpy as voc
 from vak.config.spect_params import SpectParamsConfig
 
 
-# In[2]:
+# In[3]:
 
 
 cd ../../..
 
 
-# In[3]:
+# In[4]:
 
 
 DATA_DIR = pathlib.Path('./data')
 assert DATA_DIR.exists(), "couldn't find DATA_DIR"
 
 
-# In[4]:
+# In[5]:
 
 
 DATASET_ROOT = DATA_DIR / "BioSoundSegBench"
 assert DATASET_ROOT.exists(), "couldn't find DATASET_ROOT"
 
 
-# In[5]:
+# In[6]:
 
 
 import json
 
 
-with open("./data/raw/labelmaps.json", "r") as fp:
+with open("./data/raw/labelsets.json", "r") as fp:
     SPECIES_ID_LABELSETS_MAP = json.load(fp)
 
 
@@ -71,14 +71,14 @@ for species in SPECIES_ID_LABELSETS_MAP.keys():
 # 2. Make spectrograms same way but with 1 ms time bins
 # 3. For both sets of spectrograms, make: multi-class frame label, binary frame label, boundary detection
 
-# In[6]:
+# In[14]:
 
 
 BF_DATA = DATASET_ROOT / "Bengalese-Finch-Song"
 assert BF_DATA.exists(), f"Directory doesn't exist: {BF_DATA}"
 
 
-# In[7]:
+# In[15]:
 
 
 from dataclasses import dataclass
@@ -131,7 +131,7 @@ class SpectParams:
     audio_path_key: str = 'audio_path'
 
 
-# In[8]:
+# In[16]:
 
 
 BF_SPECT_PARAMS = [
@@ -153,7 +153,7 @@ BF_SPECT_PARAMS = [
 ]
 
 
-# In[9]:
+# In[17]:
 
 
 def frame_labels_to_boundary_onehot(frame_labels):
@@ -171,7 +171,7 @@ def frame_labels_to_boundary_onehot(frame_labels):
     return boundary_onehot
 
 
-# In[10]:
+# In[18]:
 
 
 def frame_labels_multi_to_binary(
@@ -183,7 +183,7 @@ def frame_labels_multi_to_binary(
     return (frame_labels != bg_class_int).astype(int)
 
 
-# In[11]:
+# In[19]:
 
 
 def get_frames_filename(audio_path, timebin_dur):
@@ -193,7 +193,7 @@ def get_frames_filename(audio_path, timebin_dur):
     return audio_path.name + f".timebin-{timebin_dur}-ms.frames.npz"
 
 
-# In[12]:
+# In[20]:
 
 
 def get_multi_frame_labels_filename(audio_path, timebin_dur, unit):
@@ -204,7 +204,7 @@ def get_multi_frame_labels_filename(audio_path, timebin_dur, unit):
     return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.multi-frame-labels.npy"
 
 
-# In[13]:
+# In[21]:
 
 
 def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
@@ -215,7 +215,7 @@ def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
     return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.binary-frame-labels.npy"
 
 
-# In[35]:
+# In[22]:
 
 
 def get_boundary_onehot_filename(audio_path, timebin_dur, unit):
@@ -226,7 +226,7 @@ def get_boundary_onehot_filename(audio_path, timebin_dur, unit):
     return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.boundary-onehot.npy"
 
 
-# In[64]:
+# In[23]:
 
 
 import math
@@ -314,7 +314,7 @@ def audio_and_annot_to_inputs_and_targets(
     np.save(boundary_onehot_path, boundary_onehot)
 
 
-# In[17]:
+# In[24]:
 
 
 def make_inputs_targets_bf(id_dir, labelmap, unit='syllable'):
@@ -341,14 +341,14 @@ def make_inputs_targets_bf(id_dir, labelmap, unit='syllable'):
             dask.compute(*todo)
 
 
-# In[18]:
+# In[25]:
 
 
 ID_DIRS = [dir_ for dir_ in sorted(BF_DATA.glob("*/"))
            if dir_.is_dir()]
 
 
-# In[18]:
+# In[ ]:
 
 
 for id_dir in ID_DIRS:
@@ -361,7 +361,7 @@ for id_dir in ID_DIRS:
     break
 
 
-# In[55]:
+# In[ ]:
 
 
 # import matplotlib.pyplot as plt
@@ -393,7 +393,7 @@ for id_dir in ID_DIRS:
 # 2. Make spectrograms with 1 ms time bins
 # 3. For both sets of spectrograms, make: multi-class frame label, binary frame label, boundary detection
 
-# In[19]:
+# In[ ]:
 
 
 CANARY_DATA = DATASET_ROOT / "Canary-Song"
@@ -406,7 +406,7 @@ assert CANARY_DATA.exists(), f"Can't find: {CANARY_DATA}"
 # 
 # That's because we want to make sure the audio file exists before we bother to copy the spectrogram. We also need to do some clean up of the vectors, and save the labels.
 
-# In[33]:
+# In[ ]:
 
 
 import math
@@ -487,7 +487,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     np.save(boundary_onehot_path, boundary_onehot)
 
 
-# In[59]:
+# In[ ]:
 
 
 CANARY_SPECT_PARAMS = [
@@ -501,7 +501,7 @@ CANARY_SPECT_PARAMS = [
 ]
 
 
-# In[60]:
+# In[ ]:
 
 
 def make_inputs_targets_canary(raw_data_dir, id_dir, labelmap, unit='syllable'):
@@ -559,7 +559,7 @@ def make_inputs_targets_canary(raw_data_dir, id_dir, labelmap, unit='syllable'):
             dask.compute(*todo)
 
 
-# In[61]:
+# In[ ]:
 
 
 RAW_DATA_ROOT = DATA_DIR / "raw"
@@ -567,7 +567,7 @@ CANARY_RAW_DATA = RAW_DATA_ROOT / "Canary-Song"
 TWEETYNET_RAW_DATA = CANARY_RAW_DATA / "tweetynet-canary"
 
 
-# In[62]:
+# In[ ]:
 
 
 CANARY_IDS = (
@@ -577,7 +577,7 @@ CANARY_IDS = (
 )
 
 
-# In[65]:
+# In[ ]:
 
 
 for canary_id in CANARY_IDS:
@@ -592,29 +592,261 @@ for canary_id in CANARY_IDS:
 
 
 # ## Mouse calls
-# 1. Make spectrograms same way as Nick did
+# 1. Make spectrograms with similar parameters to Jourjine et al 2023
 # 2. Make spectrograms with 1 ms time bins
 
+# In[78]:
+
+
+RAW_DATA_ROOT = DATA_DIR / "raw"
+MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Calls"
+JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
+
+
+# In[79]:
+
+
+MOUSE_DATA = DATASET_ROOT / "Mouse-Pup-Calls"
+assert MOUSE_DATA.exists(), f"Couldn't find: {MOUSE_DATA}"
+
+
+# In[187]:
+
+
+import scipy.signal
+import scipy.interpolate
+
+
+def make_spectrogram_jourjine_et_al_2023(
+    data,
+    samplerate,
+    noise_floor,
+    npserseg=512,
+    noverlap=128,
+    min_freq=5000,
+    max_freq=125000,
+    num_freq_bins=128,
+    fill_value=0.5,
+    spec_max_val=10,
+):
+    """Spectrogram function for mouse pup calls from Jourjine et al. 2023 dataset
+
+    Adapted from https://github.com/nickjourjine/peromyscus-pup-vocal-evolution/blob/main/src/spectrogramming.py
+    """
+    # we expect audio from vocalpy as float numpy array with range [0., 1.]
+    # and convert to 16-bit int like AVA code expects
+    data = ((data * 2**15).astype(np.int16))
+    f, t, specgram = scipy.signal.stft(data, samplerate, nperseg=nperseg, noverlap=noverlap)
+    
+    #define the target frequencies for interpolation
+    duration = np.max(t)
+    target_freqs = np.linspace(min_freq, max_freq, num_freq_bins)
+    # we don't interpolate times
+    target_times = t
+    # process
+    specgram = np.log(np.abs(specgram) + 1e-12) # make a log spectrogram 
+
+    # NOTE we replace legacy code
+    # interp = scipy.interpolate.interp2d(t, f, specgram, copy=False, bounds_error=False, fill_value=fill_value) #define the interpolation object 
+    # interp_spec = interp(target_times, target_freqs, assume_sorted=True) #interpolate 
+    # I don't find that np.allclose() is True for these (despite what scipy docs say), not sure if it's something I'm missing
+    r = scipy.interpolate.RectBivariateSpline(t, f, specgram.T)
+    interp_spec = r(target_times, target_freqs).T
+
+    spec_min_val = noise_floor
+    # min-max normalize
+    spec_out = interp_spec - spec_min_val
+    spec_out /= (spec_max_val - spec_min_val)
+    # clip to ensure all values b/t 0 and 1
+    spec_out = np.clip(spec_out, 0.0, 1.0)
+    return spec_out, target_freqs, target_times
+
+
+# In[188]:
+
+
+@dataclass
+class JourjineEtAl2023SpectParams:
+    """Dataclass that represents spectrogram parameters 
+    used with :func:`make_spectrogram_jourjine_et_al_2023`
+    """
+    npserseg: int = 512
+    noverlap: int = 128
+    min_freq: int = 5000
+    max_freq: int = 125000
+    num_freq_bins: int = 128
+    fill_value: float = 0.5
+    spec_max_val: int = 10
+    timebin_dur: float = 1.5
+
+
+# In[189]:
+
+
+def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
+    audio_path: pathlib.Path,
+    annot_path: pathlib.Path,
+    spect_params: JourjineEtAl2023SpectParams,
+    noise_floor: float,
+    dst: pathlib.Path,
+    labelmap: dict,
+    unit: str = 'call',
+):
+    """Generate frames (spectrogram) and frame label / boundary detection vectors.
+
+    This is a helper function used to parallelize, by calling it
+    with `dask.delayed`.
+    It is used with mouse pup call data from Jourjine et al 2023.
+    """
+    sound = voc.Audio.read(audio_path)
+
+    s, f, t = make_spectrogram_jourjine_et_al_2023(
+        data=sound.data,
+        samplerate=sound.samplerate,
+        noise_floor=noise_floor,
+        npserseg=spect_params.npserseg,
+        noverlap=spect_params.noverlap,
+        min_freq=spect_params.min_freq,
+        max_freq=spect_params.max_freq,
+        num_freq_bins=spect_params.num_freq_bins,
+        fill_value=spect_params.fill_value,
+        spec_max_val=spect_params.spec_max_val,
+    )
+    timebin_dur = np.diff(t).mean()
+    if not math.isclose(
+        timebin_dur, 
+        spect_params.timebin_dur * 1e-3,
+        abs_tol=0.001,
+    ):
+        raise ValueError(
+            f"Expected spectrogram with timebis of duration {spect_params.timebin_dur * 1e-3} "
+            f"but got duration {timebin_dur} for audio path: {audio_path}"
+        )
+    spect_dict = {
+        spect_params.spect_key: s,
+        spect_params.freqbins_key: f,
+        spect_params.timebins_key: t,
+    }
+
+    frames_filename = get_frames_filename(
+        audio_path, spect_params.timebin_dur
+    )
+    frames_path = dst / frames_filename
+    np.savez(frames_path, **spect_dict)
+
+    annot = SCRIBE.from_file(annot_path)
+    lbls_int = [labelmap[lbl] for lbl in annot.labels]
+    # NOTE: the data is labeled with a single label for all segments
+    # so we do not save a multi-class frame label vector
+    frame_labels_binary = vak.transforms.frame_labels.from_segments(
+        lbls_int,
+        annot.onsets_s,
+        annot.offsets_s,
+        t,
+        unlabeled_label=labelmap["unlabeled"],
+    )
+    uniq_lbls = set(np.unique(frame_labels_binary))
+    if not uniq_lbls == {0, 1}:
+        raise ValueError(
+            f"Expected unique values (0, 1) in frame labels but got: {uniq_lbls}"
+        )
+    frame_labels_binary_filename = get_binary_frame_labels_filename(
+        audio_path, spect_params.timebin_dur, unit
+    )
+    frame_labels_binary_path = dst / frame_labels_binary_filename
+    np.save(frame_labels_binary_path, frame_labels_binary)
+    
+    boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_binary)
+    boundary_onehot_filename = get_boundary_onehot_filename(
+        audio_path, spect_params.timebin_dur, unit
+    )
+    boundary_onehot_path = dst / boundary_onehot_filename
+    np.save(boundary_onehot_path, boundary_onehot)
+
+
+# In[190]:
+
+
+JOURJINE_ET_AL_2023_SPECT_PARAMS = [
+    JourjineEtAl2023SpectParams()
+]
+
+
+# In[191]:
+
+
+JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV = JOURJINE_ET_AL_2023_DATA / "processed_data" / "figure_1" / "acoustic_features" / "all_noise_floors.csv"
+JOURJINE_ET_AL_2023_NOISE_FLOORS = pd.read_csv(NOISE_FLOOR_CSV)
+# replace DataFrame with a dict mapping file name to noise floor,
+# so we can just do a lookup table instead of dealing with pandas
+JOURJINE_ET_AL_2023_NOISE_FLOORS = {
+    source_file: noise_floor
+    for source_file, noise_floor in zip(
+        JOURJINE_ET_AL_2023_NOISE_FLOORS.source_file.values,
+        JOURJINE_ET_AL_2023_NOISE_FLOORS.noise_floor.values
+    )
+}
+
+
+# In[192]:
+
+
+def make_inputs_targets_jourjine_et_al_2023(id_dir, labelmap, unit='call'):
+    wav_paths = voc.paths.from_dir(id_dir, '.wav')
+    csv_paths = voc.paths.from_dir(id_dir, f'.{unit}.csv')
+
+    for spect_params in JOURJINE_ET_AL_2023_SPECT_PARAMS:
+        print(
+            f"Making inputs and targets with `spect_params`: {spect_params}"
+        )
+        todo = []
+        for wav_path, csv_path in zip(wav_paths, csv_paths):
+            noise_floor = NOISE_FLOORS[wav_path.name]
+            todo.append(
+                dask.delayed(audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023)(
+                    audio_path=wav_path,
+                    annot_path=csv_path,
+                    spect_params=spect_params,
+                    noise_floor=noise_floor,
+                    dst=id_dir,
+                    labelmap=labelmap,
+                    unit=unit,
+                )
+            )
+        with ProgressBar():
+            dask.compute(*todo)
+
+
+# In[193]:
+
+
+JOURJINE_ET_AL_2023_LABELSET = ["v"]
+JOURJINE_ET_AL_2023_LABELSET = vak.common.converters.labelset_to_set(JOURJINE_ET_AL_2023_LABELSET)
+JOURJINE_ET_AL_2023_LABELMAP = vak.common.labels.to_map(JOURJINE_ET_AL_2023_LABELSET)
+
+
+# In[194]:
+
+
+MOUSE_ID_DIRS = sorted([
+    dir_ for dir_ in MOUSE_DATA.iterdir() if dir_.is_dir()
+])
+
+
 # In[ ]:
 
 
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
+for id_dir in MOUSE_ID_DIRS:
+    assert id_dir.name.startswith('jourjine-et-al-2023')
+    make_inputs_targets_jourjine_et_al_2023(
+        id_dir,
+        labelmap=JOURJINE_ET_AL_2023_LABELMAP,
+        unit='call',
+    )
 
 
 # ## Zebra finch song
-# 1. Make spectrograms with time bins from DAS?
+# 1. Make spectrograms with time bins size from DAS
 # 2. Make spectrograms with 1 ms time bins
 
 # In[ ]:

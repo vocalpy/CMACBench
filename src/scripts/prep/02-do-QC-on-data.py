@@ -171,7 +171,7 @@ for species, csv_ext in SPECIES_CSV_EXT_MAP.items():
 # 
 # For the bird datasets in particular we need to remove cases where a sound is labeled with a label not in the set of labels we use during training, since we will always get that one wrong.
 
-# In[9]:
+# In[30]:
 
 
 import vak
@@ -198,10 +198,25 @@ SPECIES_ID_LABELSETS_MAP = {
 for species in SPECIES_ID_LABELSETS_MAP.keys():
     id_labelset_map = SPECIES_ID_LABELSETS_MAP[species]
     id_labelset_map = {
-        id: vak.common.converters.labelset_to_set(labelset)
+        # we convert the set to a list so we can dump to json
+        id: list(
+            vak.common.converters.labelset_to_set(labelset)
+        )
         for id, labelset in id_labelset_map.items()
     }
     SPECIES_ID_LABELSETS_MAP[species] = id_labelset_map
+
+
+# In[31]:
+
+
+import json
+
+# we write these out in code for now because it's easier
+# but then dump them so we can get them later from a static file
+# Long term we will want this as metadata in static files, not code
+with open("./data/raw/labelsets.json", "w") as fp:
+    json.dump(SPECIES_ID_LABELSETS_MAP, fp, indent=4)
 
 
 # In[ ]:
