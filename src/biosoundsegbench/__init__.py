@@ -7,7 +7,8 @@ from . import (
     eval,
     learncurve,
     loss,
-    model,
+    models,
     predict,
+    prep,
     train,
 )
