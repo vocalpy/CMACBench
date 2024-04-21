@@ -63,6 +63,22 @@ ZB_RAW_DATA = RAW_DATA_ROOT / "Zebra-Finch-Song"
 STEINFATH_ET_AL_2021_RAW_DATA = ZB_RAW_DATA / "Steinfath-et-al-2021-DAS-Zebra-finch-train-and-test-data"
 STEINFATH_ET_AL_2021_ZB_BIRD_ID = "blu285"
 
+# -------- Human speech
+SPEECH_RAW_DATA = RAW_DATA_ROOT / "Human-Speech"
+
+# ------------ TIMIT NLTK sample
+TIMIT_NLTK_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-sample-from-NLTK" / "timit"
+
+# ---- all the data from datasets with unpermissive licenses goes here
+DATA_WE_CANT_SHARE = DATA_DIR / "DATA-WE-CANT-SHARE"
+
+# -------- human speech data we can't share
+HUMAN_SPEECH_WE_CANT_SHARE = DATA_WE_CANT_SHARE / "Human-Speech"
+
+# ------------ TIMIT full corpus
+TIMIT_FULL_CORPUS_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-full" / "data"
+
+
 # ---- root for dataset we are making,
 # and species-specific sub-dirs
 DATASET_ROOT = DATA_DIR / "BioSoundSegBench"
