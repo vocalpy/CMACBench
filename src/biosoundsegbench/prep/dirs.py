@@ -44,3 +44,9 @@ def mkdirs(dry_run=True):
     )
     if not dry_run:
         constants.SPEECH_DATA_DST.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory DATA_WE_CANT_SHRE: {constants.DATA_WE_CANT_SHARE}"
+    )
+    if not dry_run:
+        constants.DATA_WE_CANT_SHARE.mkdir(exist_ok=True)
