@@ -1,13 +1,24 @@
 import pathlib
 
 # ---- constants for argparser -----------------------------------------------
-PREP_STAGES = [
+PREP_STAGES = (
     "all",
     "mkdirs",
     "copy",
+    "labels",
+    "qc",
     "make",
     "clean"
-]
+)
+
+
+BIOSOUND_CLASSES = (
+    'bengalese-finch-song',
+    'canary-song',
+    'mouse-pup-call',
+    'zebra-finch-song',
+    'human-speech'
+)
 
 
 # ---- directories -----------------------------------------------------------
@@ -55,6 +66,9 @@ MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Calls"
 # ------------- Jourjine et al. 2023 dataset
 JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
 JOURJINE_ET_AL_2023_SEGS_DIR = JOURJINE_ET_AL_2023_DATA / "processed_data" / "supplemental_figure_5"
+JOURJINE_ET_AL_2023_MOUSE_SPECIES = (
+    'BK',
+)
 
 # --------- Zebra finch song
 ZB_RAW_DATA = RAW_DATA_ROOT / "Zebra-Finch-Song"
@@ -98,3 +112,7 @@ ZB_DATA_DST = DATASET_ROOT / "Zebra-Finch-Song"
 # -------- Human speech
 SPEECH_DATA_DST = DATASET_ROOT / "Human-Speech"
 
+# ----- metadata -----------------------------------------------------------------------------------
+
+LABELSETS_JSON = DATASET_ROOT / "labelsets.json"
+LABELMAPS_JSON = DATASET_ROOT / "labelmaps.json"

@@ -10,11 +10,20 @@ def get_parser():
         "--stage",
         choices=constants.PREP_STAGES,
         default="all",
+        help=f"Stage of prep to run. Stages are: {constants.PREP_STAGES}"
+    )
+    parser.add_argument(
+        "--biosound-classes",
+        choices=constants.BIOSOUND_CLASSES,
+        nargs="+",
+        default=constants.BIOSOUND_CLASSES,
+        help=(f"Space-separated list of which class(es) of biosound to prep. "\
+        f"Classes are: {constants.BIOSOUND_CLASSES}. Default is all of them.")
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         default=False,
-        help="If this option is set, do a 'dry run', just to test code"
+        help="If this option is set, do a 'dry run' without copying or generating files, just to test code"
     )
     return parser

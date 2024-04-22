@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # # Make inputs and targets
-# 
+#
 # Uses raw data--audio and annotations--to make inputs and targets for neural network models.
 
 # In[2]:
@@ -66,7 +66,7 @@ for species in SPECIES_ID_LABELSETS_MAP.keys():
 
 
 # ## Bengalese finch song
-# 
+#
 # 1. Make standard spectrograms
 # 2. Make spectrograms same way but with 1 ms time bins
 # 3. For both sets of spectrograms, make: multi-class frame label, binary frame label, boundary detection
@@ -91,7 +91,7 @@ class SpectParams:
     Attributes
     ----------
     fft_size : int
-        size of window for Fast Fourier transform, number of time bins. 
+        size of window for Fast Fourier transform, number of time bins.
     step_size : int
         step size for Fast Fourier transform.
     freq_cutoffs : list
@@ -163,9 +163,9 @@ def frame_labels_to_boundary_onehot(frame_labels):
     # wherever the first-order difference is not 0.
     boundary_onehot = (np.diff(frame_labels, axis=0) != 0).astype(int)
     # The actual change occurs at :math:`i`=np.diff(frame_labels) + 1,
-    # but we shift everything to the right by 1 when we add a first index 
+    # but we shift everything to the right by 1 when we add a first index
     # indicating a boundary.
-    # This first index we add is the onset of the "first" segment 
+    # This first index we add is the onset of the "first" segment
     # -- typically will be a segment belonging to the background class
     boundary_onehot = np.insert(boundary_onehot, 0, 1)
     return boundary_onehot
@@ -197,7 +197,7 @@ def get_frames_filename(audio_path, timebin_dur):
 
 
 def get_multi_frame_labels_filename(audio_path, timebin_dur, unit):
-    """Get name for multiclass frame labels file, 
+    """Get name for multiclass frame labels file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
@@ -208,7 +208,7 @@ def get_multi_frame_labels_filename(audio_path, timebin_dur, unit):
 
 
 def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
-    """Get name for binary classification frame labels file, 
+    """Get name for binary classification frame labels file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
@@ -219,7 +219,7 @@ def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
 
 
 def get_boundary_onehot_filename(audio_path, timebin_dur, unit):
-    """Get name for boundary detection onehot encoding file, 
+    """Get name for boundary detection onehot encoding file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
@@ -264,7 +264,7 @@ def audio_and_annot_to_inputs_and_targets(
     )
     timebin_dur = np.diff(t).mean()
     if not math.isclose(
-        timebin_dur, 
+        timebin_dur,
         spect_params.timebin_dur * 1e-3,
         abs_tol=0.001,
     ):
@@ -305,7 +305,7 @@ def audio_and_annot_to_inputs_and_targets(
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
-    
+
     boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
     boundary_onehot_filename = get_boundary_onehot_filename(
         audio_path, spect_params.timebin_dur, unit
@@ -401,9 +401,9 @@ assert CANARY_DATA.exists(), f"Can't find: {CANARY_DATA}"
 
 
 # For one set of spectrogram files, we copy them from the raw data.
-# 
+#
 # We do this *after* we copy raw audio and convert annotations, then QC the annotations and remove any (audio, annotation) pairs where the annotations are invalid (e.g., because of a first onset less than zero).
-# 
+#
 # That's because we want to make sure the audio file exists before we bother to copy the spectrogram. We also need to do some clean up of the vectors, and save the labels.
 
 # In[ ]:
@@ -426,7 +426,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     timebin_dur: float = 2.7,  # milliseconds
 ):
     """Generate frames (spectrogram) and frame label / boundary detection vectors.
-    
+
     This helper function is used just with canary song,
     for the case where we are converting / renaming existing spectrogram files
     """
@@ -478,7 +478,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
-    
+
     boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
     boundary_onehot_filename = get_boundary_onehot_filename(
         audio_path, timebin_dur, unit
@@ -603,14 +603,8 @@ MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Calls"
 JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
 
 
-# In[79]:
-
-
 MOUSE_DATA = DATASET_ROOT / "Mouse-Pup-Calls"
 assert MOUSE_DATA.exists(), f"Couldn't find: {MOUSE_DATA}"
-
-
-# In[187]:
 
 
 import scipy.signal
@@ -637,18 +631,18 @@ def make_spectrogram_jourjine_et_al_2023(
     # and convert to 16-bit int like AVA code expects
     data = ((data * 2**15).astype(np.int16))
     f, t, specgram = scipy.signal.stft(data, samplerate, nperseg=nperseg, noverlap=noverlap)
-    
+
     #define the target frequencies for interpolation
     duration = np.max(t)
     target_freqs = np.linspace(min_freq, max_freq, num_freq_bins)
     # we don't interpolate times
     target_times = t
     # process
-    specgram = np.log(np.abs(specgram) + 1e-12) # make a log spectrogram 
+    specgram = np.log(np.abs(specgram) + 1e-12) # make a log spectrogram
 
     # NOTE we replace legacy code
-    # interp = scipy.interpolate.interp2d(t, f, specgram, copy=False, bounds_error=False, fill_value=fill_value) #define the interpolation object 
-    # interp_spec = interp(target_times, target_freqs, assume_sorted=True) #interpolate 
+    # interp = scipy.interpolate.interp2d(t, f, specgram, copy=False, bounds_error=False, fill_value=fill_value) #define the interpolation object
+    # interp_spec = interp(target_times, target_freqs, assume_sorted=True) #interpolate
     # I don't find that np.allclose() is True for these (despite what scipy docs say), not sure if it's something I'm missing
     r = scipy.interpolate.RectBivariateSpline(t, f, specgram.T)
     interp_spec = r(target_times, target_freqs).T
@@ -662,12 +656,9 @@ def make_spectrogram_jourjine_et_al_2023(
     return spec_out, target_freqs, target_times
 
 
-# In[188]:
-
-
 @dataclass
 class JourjineEtAl2023SpectParams:
-    """Dataclass that represents spectrogram parameters 
+    """Dataclass that represents spectrogram parameters
     used with :func:`make_spectrogram_jourjine_et_al_2023`
     """
     npserseg: int = 512
@@ -678,9 +669,6 @@ class JourjineEtAl2023SpectParams:
     fill_value: float = 0.5
     spec_max_val: int = 10
     timebin_dur: float = 1.5
-
-
-# In[189]:
 
 
 def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
@@ -714,7 +702,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     )
     timebin_dur = np.diff(t).mean()
     if not math.isclose(
-        timebin_dur, 
+        timebin_dur,
         spect_params.timebin_dur * 1e-3,
         abs_tol=0.001,
     ):
@@ -755,7 +743,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
-    
+
     boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_binary)
     boundary_onehot_filename = get_boundary_onehot_filename(
         audio_path, spect_params.timebin_dur, unit
@@ -764,16 +752,9 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     np.save(boundary_onehot_path, boundary_onehot)
 
 
-# In[190]:
-
-
 JOURJINE_ET_AL_2023_SPECT_PARAMS = [
     JourjineEtAl2023SpectParams()
 ]
-
-
-# In[191]:
-
 
 JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV = JOURJINE_ET_AL_2023_DATA / "processed_data" / "figure_1" / "acoustic_features" / "all_noise_floors.csv"
 JOURJINE_ET_AL_2023_NOISE_FLOORS = pd.read_csv(NOISE_FLOOR_CSV)
@@ -801,7 +782,7 @@ def make_inputs_targets_jourjine_et_al_2023(id_dir, labelmap, unit='call'):
         )
         todo = []
         for wav_path, csv_path in zip(wav_paths, csv_paths):
-            noise_floor = NOISE_FLOORS[wav_path.name]
+            noise_floor = JOURJINE_ET_AL_2023_NOISE_FLOORS[wav_path.name]
             todo.append(
                 dask.delayed(audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023)(
                     audio_path=wav_path,
@@ -817,23 +798,15 @@ def make_inputs_targets_jourjine_et_al_2023(id_dir, labelmap, unit='call'):
             dask.compute(*todo)
 
 
-# In[193]:
-
 
 JOURJINE_ET_AL_2023_LABELSET = ["v"]
 JOURJINE_ET_AL_2023_LABELSET = vak.common.converters.labelset_to_set(JOURJINE_ET_AL_2023_LABELSET)
 JOURJINE_ET_AL_2023_LABELMAP = vak.common.labels.to_map(JOURJINE_ET_AL_2023_LABELSET)
 
 
-# In[194]:
-
-
 MOUSE_ID_DIRS = sorted([
     dir_ for dir_ in MOUSE_DATA.iterdir() if dir_.is_dir()
 ])
-
-
-# In[ ]:
 
 
 for id_dir in MOUSE_ID_DIRS:
@@ -849,54 +822,7 @@ for id_dir in MOUSE_ID_DIRS:
 # 1. Make spectrograms with time bins size from DAS
 # 2. Make spectrograms with 1 ms time bins
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
 
 # ## Human speech
 # 1. Make standard MFCC features spectrograms, 10 ms time bins
 # 2. Make standard MFCC features spectrograms, 1 ms time bins
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
