@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import crowsetta
 import dask.delayed
 from dask.diagnostics import ProgressBar
+import librosa
 import numpy as np
 import pandas as pd
 import scipy.signal
@@ -860,7 +861,7 @@ def make_inputs_and_targets_zebra_finch_song(dry_run=True):
 
     species_id_labelmap_map = labels.get_labelmaps()
     for id_dir in ZB_ID_DIRS:
-        print(
+        logger.info(
             f"Making neural network inputs and targets for: {id_dir.name}"
         )
         id = id_dir.name.split('-')[-1]
@@ -871,40 +872,317 @@ def make_inputs_and_targets_zebra_finch_song(dry_run=True):
 # ---- human speech ---------------------------------------------------------------------------------------------------------------------------------
 
 
+def speech_audio_to_MFCC_features(
+    audio_path,
+    hop_length_s=0.01,
+    n_fft_s=0.025,
+    n_mels=40,
+    n_mfcc=13,
+    add_dist_features=False,
+):
+    """Converts audio into framewise features
+
+    Adapted from https://github.com/felixkreuk/SegFeat
+
+    > ... we extracted 13 Mel-Frequency Cepstrum Coefficients (MFCCs),
+    with delta and delta-delta features every 10 ms,
+    with a processing window size of 10ms.
+
+    If `add_dist_features` is True, this function adds additional features:
+
+    > Moreover, we concatenated four additional features based
+    on the spectral changes between adjacent frames, using
+    MFCCs to represent the spectral properties of the frames.
+    Define Dt,j = d(at−j , at+j ) to be the Euclidean distance
+    between the MFCC feature vectors at−j and at+j , where
+    at ∈ R for 1 ≤ t ≤ T . The features are denoted by Dt,j ,
+    for j ∈ {1, 2, 3, 4}. We observed this set of features greatly
+    improves performance over the standard MFCC features.
+
+    See also: https://groups.google.com/g/librosa/c/V4Z1HpTKn8Q/m/1-sMpjxjCSoJ
+    """
+    y, sr = librosa.load(audio_path, sr=None)
+    hop_length = int(hop_length_s * sr)
+    n_fft = int(n_fft_s * sr)
+    spect = librosa.feature.mfcc(y=y,
+                                 sr=sr,
+                                 n_fft=n_fft,
+                                 hop_length=hop_length,
+                                 n_mels=n_mels,
+                                 n_mfcc=n_mfcc
+                                )
+
+    delta  = librosa.feature.delta(spect, order=1)
+    delta2 = librosa.feature.delta(spect, order=2)
+    frames  = np.concatenate([spect, delta, delta2], axis=0)
+    if add_dist_features:
+        dist = []
+        for i in range(2, 9, 2):
+            pad = int(i/2)
+            d_i = np.concatenate([np.zeros(pad), ((spect[:, i:] - spect[:, :-i]) ** 2).sum(0) ** 0.5, np.zeros(pad)], axis=0)
+            dist.append(d_i)
+        dist = np.stack(dist)
+        frames = np.concatenate([frames, dist], axis=0)
+    times = librosa.frames_to_time(
+        np.arange(frames.shape[1]), sr=sr, hop_length=hop_length, n_fft=n_fft
+    )
+    return frames, times
+
+
+@dataclass
+class SpeechMFCCParams:
+    n_fft_s: float = 0.25
+    hop_length_s: float = 0.01
+    n_mels: int = 40
+    n_mfcc: int = 13
+    timebin_dur: float = 10.  # ms
+    add_dist_features: bool = False
+    spect_key: str = 's'
+    freqbins_key: str = 'f'
+    timebins_key: str = 't'
+    audio_path_key: str = 'audio_path'
+
+
+def boundary_onehot_from_times(
+    boundary_times: np.ndarray,
+    time_bins: np.ndarray,
+):
+    """Get boundary detection vector encoded as one-hot
+    labels for frames, from vector of boundary times
+    and vector of frame times"""
+    # we assume there will be a boundary at 0
+    # which is true for TIMIT
+    boundary_inds = np.array(
+        # TODO: vectorize subtraction then get argmin row/column-wise
+        [np.argmin(np.abs(time_bins - boundary_time))
+         for boundary_time in boundary_times]
+    )
+    boundary_onehot = np.zeros_like(time_bins).astype(int)
+    boundary_onehot[boundary_inds] = 1
+    return boundary_onehot
+
+
+
+def audio_and_annot_to_inputs_and_targets_speech(
+    audio_path: pathlib.Path,
+    mfcc_params: SpeechMFCCParams,
+    unit_annot_path_map: dict[str: pathlib.Path],
+    dst: pathlib.Path,
+    labelmap: dict,
+):
+    """Generate frames (spectrogram) and frame label / boundary detection vectors.
+
+    This is a helper function used to parallelize, by calling it
+    with `dask.delayed`.
+    It is used with human speech.
+    """
+    frames, times = speech_audio_to_MFCC_features(
+        audio_path,
+        hop_length_s=mfcc_params.hop_length_s,
+        n_fft_s=mfcc_params.n_fft_s,
+        n_mels=mfcc_params.n_mels,
+        n_mfcc=mfcc_params.n_mfcc,
+        add_dist_features=mfcc_params.add_dist_features,
+    )
+
+    timebin_dur = np.diff(times).mean()
+    if not math.isclose(
+        timebin_dur,
+        mfcc_params.timebin_dur * 1e-3,
+        abs_tol=0.001,
+    ):
+        raise ValueError(
+            f"Expected MFCC frames with timebins of duration {mfcc_params.timebin_dur * 1e-3} "
+            f"but got duration {timebin_dur} for audio path: {audio_path}"
+        )
+    frames_dict = {
+        mfcc_params.spect_key: frames,
+        mfcc_params.timebins_key: times,
+    }
+
+    frames_filename = get_frames_filename(
+        audio_path, mfcc_params.timebin_dur
+    )
+    frames_path = dst / frames_filename
+    np.savez(frames_path, **frames_dict)
+
+    for unit, annot_path in unit_annot_path_map.items():
+        if annot_path is None:
+            continue
+        annot = SCRIBE.from_file(annot_path)
+        if unit == 'phoneme':
+            # labelmap has phonemes (not words!)
+            lbls_int = [labelmap[lbl] for lbl in annot.labels]
+            frame_labels_multi = vak.transforms.frame_labels.from_segments(
+                lbls_int,
+                annot.onsets_s,
+                annot.offsets_s,
+                times,
+                unlabeled_label=labelmap["unlabeled"],
+            )
+            frame_labels_multi_filename = get_multi_frame_labels_filename(
+                audio_path, mfcc_params.timebin_dur, unit
+            )
+            frame_labels_multi_path = dst / frame_labels_multi_filename
+            np.save(frame_labels_multi_path, frame_labels_multi)
+
+            # we don't generate binary classification since
+            # in general there are not silent segments
+            # between phonemes
+
+            boundary_times = np.unique(
+                voc.metrics.segmentation.ir.concat_starts_and_stops(
+                    annot.onsets_s, annot.offsets_s)
+            )
+            boundary_onehot = boundary_onehot_from_times(
+                boundary_times,
+                times
+            )
+            boundary_onehot_filename = get_boundary_onehot_filename(
+                audio_path, mfcc_params.timebin_dur, unit
+            )
+            boundary_onehot_path = dst / boundary_onehot_filename
+            np.save(boundary_onehot_path, boundary_onehot)
+        elif unit == 'word':
+            # we don't generate multi-class frame labels because
+            # of the extreme imbalance between classes --
+            # some words occur only once
+
+            # we don't generate binary classification since
+            # in general there are not silent segments
+            # between words
+
+            # so that leaves us ... boundary times
+            boundary_times = np.unique(
+                voc.metrics.segmentation.ir.concat_starts_and_stops(
+                    annot.onsets_s, annot.offsets_s)
+            )
+            boundary_onehot = boundary_onehot_from_times(
+                boundary_times,
+                times
+            )
+            boundary_onehot_filename = get_boundary_onehot_filename(
+                audio_path, mfcc_params.timebin_dur, unit
+            )
+            boundary_onehot_path = dst / boundary_onehot_filename
+            np.save(boundary_onehot_path, boundary_onehot)
+
+
+HUMAN_SPEECH_MFCC_PARAMS = [
+    # (default) time bin dur of 10 ms
+    SpeechMFCCParams(),
+    # timebin dur of 1 ms
+    SpeechMFCCParams(hop_length_s=0.001, timebin_dur=1.),
+]
+
+
+def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True):
+    """
+    """
+    wav_paths = sorted(speaker_id_dir.glob('*.wav'))
+    wrd_paths = sorted(speaker_id_dir.glob('*.word.csv'))
+    phn_paths = sorted(speaker_id_dir.glob('*.phoneme.csv'))
+
+    wav_with_unit_annot = []
+    phn_paths_fnd = 0
+    wrd_paths_fnd = 0
+    for wav_path in wav_paths:
+        unit_annot_path_map = {}
+        expected_phn_path = speaker_id_dir / f"{wav_path.name}.phoneme.csv"
+        if expected_phn_path in phn_paths:
+            unit_annot_path_map['phoneme'] = expected_phn_path
+            phn_paths_fnd += 1
+        else:
+            unit_annot_path_map['phoneme'] = None
+        expected_wrd_path = speaker_id_dir / f"{wav_path.name}.word.csv"
+        if expected_wrd_path in wrd_paths:
+            unit_annot_path_map['word'] = expected_wrd_path
+            wrd_paths_fnd += 1
+        else:
+            unit_annot_path_map['word'] = None
+        wav_with_unit_annot.append(
+            (wav_path, unit_annot_path_map)
+        )
+    if phn_paths_fnd != len(phn_paths):
+        raise ValueError(
+            f"Found {phn_paths_fnd} phoneme annotation paths when pairing "
+            f"but found {len(phn_paths)} in directory:\n{speaker_id_dir}"
+        )
+
+    if wrd_paths_fnd != len(wrd_paths):
+        raise ValueError(
+            f"Found {wrd_paths_fnd} word annotation paths when pairing "
+            f"but found {len(wrd_paths)} in directory:\n{speaker_id_dir}"
+        )
+
+    for mfcc_params in HUMAN_SPEECH_MFCC_PARAMS:
+        logger.info(
+            f"Making inputs and targets with `mfcc_params`: {mfcc_params}"
+        )
+        todo = []
+        for wav_path, unit_annot_path_map in wav_with_unit_annot:
+            todo.append(
+                dask.delayed(audio_and_annot_to_inputs_and_targets_speech)(
+                    wav_path,
+                    mfcc_params=mfcc_params,
+                    unit_annot_path_map=unit_annot_path_map,
+                    dst=speaker_id_dir,
+                    labelmap=labelmap,
+                )
+            )
+        if not dry_run:
+            with ProgressBar():
+                dask.compute(*todo)
+
+
 def make_inputs_and_targets_human_speech(dry_run=True):
-    pass
+    """
+    """
+    TIMIT_DIALECT_SPKR_DIRS = [
+        dir_ for dir_ in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
+        if dir_.is_dir()
+    ] + [dir_ for dir_ in constants.SPEECH_DATA_DST if dir_.is_dir()]
+
+    species_id_labelmap_map = labels.get_labelmaps()
+    labelmap = species_id_labelmap_map['Human-Speech']['phoneme']['all']
+    for id_dir in TIMIT_DIALECT_SPKR_DIRS:
+        logger.info(
+            f"Making neural network inputs and targets for: {id_dir.name}"
+        )
+        id = id_dir.name.split('-')[-1]
+        make_inputs_targets_speech_speaker_id(id_dir, labelmap, dry_run=dry_run)
 
 
 # ---- all ------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def make_inputs_and_targets_all(biosound_classes, dry_run=True):
-    if "bengalese-finch-song" in biosound_classes:
+def make_inputs_and_targets_all(biosound_groups, dry_run=True):
+    if "Bengalese-Finch-Song" in biosound_groups:
         logger.info(
             f"Making inputs and targets for Bengalese finch song."
         )
         make_inputs_and_targets_bengalese_finch_song(dry_run)
 
-    if "canary-song" in biosound_classes:
+    if "Canary-Song" in biosound_groups:
         logger.info(
             f"Making inputs and targets for canary song."
         )
         make_inputs_and_targets_canary_song(dry_run)
 
-    if "mouse-pup-call" in biosound_classes:
+    if "Mouse-Pup-Call" in biosound_groups:
         logger.info(
             f"Making inputs and targets for mouse pup calls."
         )
         make_inputs_and_targets_mouse_pup_call(dry_run)
 
-    if "zebra-finch-song" in biosound_classes:
+    if "Zebra-Finch-Song" in biosound_groups:
         logger.info(
             f"Making inputs and targets for Zebra finch song."
         )
         make_inputs_and_targets_zebra_finch_song(dry_run)
 
-    if "human-speech" in biosound_classes:
+    if "Human-Speech" in biosound_groups:
         logger.info(
-            f"Making inputs and targets for mouse pup calls."
+            f"Making inputs and targets for human speech."
         )
         make_inputs_and_targets_human_speech(dry_run)

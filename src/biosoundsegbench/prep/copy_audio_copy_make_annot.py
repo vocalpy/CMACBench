@@ -511,8 +511,8 @@ def copy_audio_convert_annotations_timit(dry_run=True):
                 wrd_simpleseq.to_file(wrd_csv_dst)
 
 
-def copy_audio_copy_make_annot_all(biosound_classes, dry_run=True):
-    if "bengalese-finch-song" in biosound_classes:
+def copy_audio_copy_make_annot_all(biosound_groups, dry_run=True):
+    if "Bengalese-Finch-Song" in biosound_groups:
         # ---- Bengalese finch song
         logger.info(
             f"Getting audio and annotations for Bengalese finch song."
@@ -520,14 +520,14 @@ def copy_audio_copy_make_annot_all(biosound_classes, dry_run=True):
         copy_wav_csv_files_bfsongrepo(dry_run)
         copy_wav_convert_annot_birdsongrec(dry_run)
 
-    if "canary-song" in biosound_classes:
+    if "Canary-Song" in biosound_groups:
         # ---- Canary song
         logger.info(
             f"Getting audio and annotations for canary song."
         )
         copy_wav_convert_annot_tweetynet_canary(dry_run)
 
-    if "mouse-pup-calls" in biosound_classes:
+    if "Mouse-Pup-Call" in biosound_groups:
         # ---- Mouse pup calls
         logger.info(
             f"Getting audio and annotations for mouse pup song."
@@ -535,14 +535,14 @@ def copy_audio_copy_make_annot_all(biosound_classes, dry_run=True):
         copy_wav_generate_annot_jourjine_et_al_2023(dry_run)
 
     # ---- Zebra finch song
-    if "zebra-finch-song" in biosound_classes:
+    if "Zebra-Finch-Song" in biosound_groups:
         logger.info(
             f"Getting audio and annotations for zebra finch song."
         )
         copy_wav_convert_annot_steinfath_et_al_2021_zebra_finch(dry_run)
 
     # ---- Human speech
-    if "human-speech" in biosound_classes:
+    if "Human-Speech" in biosound_groups:
         logger.info(
             f"Getting audio and annotations for human speech."
         )

@@ -12,12 +12,12 @@ PREP_STAGES = (
 )
 
 
-BIOSOUND_CLASSES = (
-    'bengalese-finch-song',
-    'canary-song',
-    'mouse-pup-call',
-    'zebra-finch-song',
-    'human-speech'
+BIOSOUND_GROUPS = (
+    'Bengalese-Finch-Song',
+    'Canary-Song',
+    'Mouse-Pup-Call',
+    'Zebra-Finch-Song',
+    'Human-Speech'
 )
 
 
@@ -61,13 +61,14 @@ TWEETYNET_BIRD_IDS = (
 )
 
 # -------- Mouse pup calls
-MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Calls"
+MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Call"
 
 # ------------- Jourjine et al. 2023 dataset
 JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
 JOURJINE_ET_AL_2023_SEGS_DIR = JOURJINE_ET_AL_2023_DATA / "processed_data" / "supplemental_figure_5"
 JOURJINE_ET_AL_2023_MOUSE_SPECIES = (
     'BK',
+    'MU',
 )
 
 # --------- Zebra finch song
@@ -104,7 +105,7 @@ BF_DATA_DST = DATASET_ROOT / "Bengalese-Finch-Song"
 CANARY_DATA_DST = DATASET_ROOT / "Canary-Song"
 
 # -------- Mouse pup calls
-MOUSE_PUP_CALL_DATA_DST = DATASET_ROOT / "Mouse-Pup-Calls"
+MOUSE_PUP_CALL_DATA_DST = DATASET_ROOT / "Mouse-Pup-Call"
 
 # -------- Zebra finch song
 ZB_DATA_DST = DATASET_ROOT / "Zebra-Finch-Song"

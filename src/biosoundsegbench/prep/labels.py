@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # we write these out in code for now because it's easier
 # but long term we will want this as metadata in static files, not code.
 # We dump them so we can get them later from a static file
-SPECIES_ID_LABELSTR_MAP = {
+GROUP_UNIT_ID_LABELSTR_MAP = {
     'Bengalese-Finch-Song': {
         'syllable': {
             'bl26lb16': "iabcdef",
@@ -43,12 +43,12 @@ SPECIES_ID_LABELSTR_MAP = {
 
 
 def make_labelsets_from_constant(dry_run=True):
-    """Make labelsets from module-level constant SPECIES_ID_LABELSTR_MAP"""
-    species_id_labelsets_map = {}
-    for species in SPECIES_ID_LABELSTR_MAP.keys():
-        species_id_labelsets_map[species] = {}
-        for unit in SPECIES_ID_LABELSTR_MAP[species].keys():
-            id_labelset_map = SPECIES_ID_LABELSTR_MAP[species][unit]
+    """Make labelsets from module-level constant GROUP_UNIT_ID_LABELSTR_MAP"""
+    group_unit_id_labelsets_map = {}
+    for species in GROUP_UNIT_ID_LABELSTR_MAP.keys():
+        group_unit_id_labelsets_map[species] = {}
+        for unit in GROUP_UNIT_ID_LABELSTR_MAP[species].keys():
+            id_labelset_map = GROUP_UNIT_ID_LABELSTR_MAP[species][unit]
             id_labelset_map = {
                 # we convert the set to a list so we can dump to json
                 id: list(
@@ -56,9 +56,9 @@ def make_labelsets_from_constant(dry_run=True):
                 )
                 for id, labelset in id_labelset_map.items()
             }
-        species_id_labelsets_map[species][unit] = id_labelset_map
+        group_unit_id_labelsets_map[species][unit] = id_labelset_map
 
-    return species_id_labelsets_map
+    return group_unit_id_labelsets_map
 
 
 SCRIBE = crowsetta.Transcriber(format="simple-seq")
@@ -94,14 +94,14 @@ def make_timit_labelsets_from_annot_files():
     return list(set(labels))
 
 
-def set_to_map(species_id_labelsets_map):
+def set_to_map(group_unit_id_labelsets_map):
     """Convert sets of labels to maps,
     that map from labels to consecutive integers"""
     species_id_labelmap_map = {}
-    for species in species_id_labelsets_map.keys():
+    for species in group_unit_id_labelsets_map.keys():
         species_id_labelmap_map[species]= {}
-        for unit in species_id_labelsets_map[species].keys():
-            id_labelset_map = species_id_labelsets_map[species][unit]
+        for unit in group_unit_id_labelsets_map[species].keys():
+            id_labelset_map = group_unit_id_labelsets_map[species][unit]
             id_labelmap_map = {
                 id: vak.common.labels.to_map(
                     # we need to convert from list back to set when loading from json
@@ -126,30 +126,30 @@ def make_labelsets_and_labelmaps(dry_run=True):
     back to string labels.
     """
     logger.info(
-        f"Making labelsets from module-level constant SPECIES_ID_LABELSTR_MAP"
+        f"Making labelsets from module-level constant GROUP_UNIT_ID_LABELSTR_MAP"
     )
-    species_id_labelsets_map = make_labelsets_from_constant()
+    group_unit_id_labelsets_map = make_labelsets_from_constant()
     logger.info(
         f"Making labelsets for human speech, from TIMIT dataset phoneme annotations"
     )
-    species_id_labelsets_map['Human-Speech'] = {}
-    species_id_labelsets_map['Human-Speech']['phoneme'] = {}
+    group_unit_id_labelsets_map['Human-Speech'] = {}
+    group_unit_id_labelsets_map['Human-Speech']['phoneme'] = {}
     phoneme_labelset = make_timit_labelsets_from_annot_files()
     # we assume same set of classes for all speakers
-    species_id_labelsets_map['Human-Speech']['phoneme']['all'] = phoneme_labelset
+    group_unit_id_labelsets_map['Human-Speech']['phoneme']['all'] = phoneme_labelset
 
     logger.info(
-        f"Final species_id_labelsets_map:\n{species_id_labelsets_map}"
+        f"Final group_unit_id_labelsets_map:\n{group_unit_id_labelsets_map}"
     )
 
     if not dry_run:
         with open(constants.LABELSETS_JSON, "w") as fp:
-            json.dump(species_id_labelsets_map, fp, indent=4)
+            json.dump(group_unit_id_labelsets_map, fp, indent=4)
 
     logger.info(
         f"Converting labelsets to labelmaps."
     )
-    species_id_labelmaps_map = set_to_map(species_id_labelsets_map)
+    species_id_labelmaps_map = set_to_map(group_unit_id_labelsets_map)
     logger.info(
         f"Final species_id_labelmap_map:\n{species_id_labelmaps_map}"
     )

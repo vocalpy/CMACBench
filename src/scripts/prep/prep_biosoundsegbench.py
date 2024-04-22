@@ -21,7 +21,7 @@ logger.setLevel('INFO')
 
 def prep_biosoundsegbench(
         stage: Stage = 'all',
-        biosound_classes: list = biosoundsegbench.prep.constants.BIOSOUND_CLASSES,
+        biosound_groups: list = biosoundsegbench.prep.constants.BIOSOUND_GROUPS,
         dry_run: bool = True,
 ):
     """Main function that prepares BioSoundSegBench dataset"""
@@ -49,7 +49,7 @@ def prep_biosoundsegbench(
             f"Stage was '{stage}', will copy raw audio into BioSoundSegBench dataset, and copy/convert/generate annotations as needed."
         )
         # ---- copy the raw audio, copy/convert/generate annotations
-        biosoundsegbench.prep.copy_audio_copy_make_annot_all(biosound_classes, dry_run)
+        biosoundsegbench.prep.copy_audio_copy_make_annot_all(biosound_groups, dry_run)
 
     if stage =='labels' or stage == 'all':
         logger.info(
@@ -61,14 +61,14 @@ def prep_biosoundsegbench(
         logger.info(
             f"Stage was '{stage}', will do quality checks on annotations and remove invalid audio/annotation pairs."
         )
-        biosoundsegbench.prep.do_qc(dry_run)
+        biosoundsegbench.prep.do_qc(biosound_groups, dry_run)
 
     if stage =='make' or stage == 'all':
         logger.info(
             f"Stage was '{stage}', will make inputs and targets for neural network models."
         )
         # ---- make frames + frame classification, boundary detection vectors
-        biosoundsegbench.prep.make_inputs_and_targets_all(biosound_classes, dry_run)
+        biosoundsegbench.prep.make_inputs_and_targets_all(biosound_groups, dry_run)
 
 
 parser = biosoundsegbench.prep.parser.get_parser()
@@ -76,6 +76,6 @@ args = parser.parse_args()
 
 prep_biosoundsegbench(
     stage=args.stage,
-    biosound_classes=args.biosound_classes,
+    biosound_groups=args.biosound_groups,
     dry_run=args.dry_run,
 )

@@ -13,12 +13,12 @@ def get_parser():
         help=f"Stage of prep to run. Stages are: {constants.PREP_STAGES}"
     )
     parser.add_argument(
-        "--biosound-classes",
-        choices=constants.BIOSOUND_CLASSES,
+        "--biosound-groups",
+        choices=constants.BIOSOUND_GROUPS,
         nargs="+",
-        default=constants.BIOSOUND_CLASSES,
-        help=(f"Space-separated list of which class(es) of biosound to prep. "\
-        f"Classes are: {constants.BIOSOUND_CLASSES}. Default is all of them.")
+        default=constants.BIOSOUND_GROUPS,
+        help=(f"Space-separated list of which group(s) of biosound to prep. "\
+        f"Groups are: {constants.BIOSOUND_GROUPS}. Default is all of them.")
     )
     parser.add_argument(
         "--dry-run",
