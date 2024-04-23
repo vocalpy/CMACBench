@@ -301,8 +301,9 @@ RNG = np.random.default_rng(seed=SEED)
 def make_clips_from_jourjine_et_al_2023(
     sample: JourjineEtAl2023Sample,
     clip_dur: float = 10.,  # seconds
+    boundary_pad = 0.003,  # seconds
     n_clips_per_file: int = 5,
-    min_segs_for_random_clips: int = 200,
+    min_segs_for_random_clips: int = 750,
 ):
     simple_seq = crowsetta.formats.seq.SimpleSeq(
         onsets_s=sample.this_file_segs_df.start_seconds.values,
@@ -318,8 +319,11 @@ def make_clips_from_jourjine_et_al_2023(
     new_clip_times = []
     for clip_time in clip_times:
         in_segment = np.logical_and(
-            clip_time > simple_seq.onsets_s,
-            clip_time < simple_seq.offsets_s
+            # we "pad" the boundaries here and use lte/gte
+            # to avoid edge case where clip_time is literally
+            # equal to the boundary time
+            clip_time >= simple_seq.onsets_s - boundary_pad,
+            clip_time <= simple_seq.offsets_s + boundary_pad
         )
         if np.any(in_segment):
             # move clip time to the middle of the preceding silent gap
@@ -329,12 +333,35 @@ def make_clips_from_jourjine_et_al_2023(
                     f"clip time detected in multiple segments: {segment_ind}"
                 )
             segment_ind = segment_ind[0]
-            prev_silent_gap_off = simple_seq.onsets_s[segment_ind]
+            prev_silent_gap_offset = simple_seq.onsets_s[segment_ind]
             if segment_ind > 0:
-                prev_silent_gap_on = simple_seq.offsets_s[segment_ind]
+                prev_silent_gap_onset = simple_seq.offsets_s[segment_ind - 1]
             else:
-                prev_silent_gap_on = 0.
-            new_clip_time = prev_silent_gap_on + (prev_silent_gap_off - prev_silent_gap_on) / 2
+                prev_silent_gap_onset = 0.
+            new_clip_time = prev_silent_gap_onset + (prev_silent_gap_offset - prev_silent_gap_onset) / 2
+            # # an alternative would be to move the clip time to the nearest silent gap
+            # # that has a duration greater than some threshold.
+            # # the problem with this alternative is it assumes the existence of multiple silent gaps
+            # # which isn't always true. Extreme case being when there's only one detected segment
+            # # in the whole recording. Leaving this cpmmented out in case we need it later
+            # si_start_times = simple_seq.offsets_s[:-1]
+            # si_stop_times = simple_seq.onsets_s[1:]
+            # si_durs = si_stop_times - si_start_times
+            # dists_to_si = np.abs(si_start_times - clip_time)
+            # dists_sort_inds = np.argsort(dists_to_si)
+            # si_durs_sorted = si_durs[dists_sort_inds]
+            # durs_gt_thresh = si_durs_sorted > THRESH
+            # si_nearest_gt_thresh = dists_sort_inds[durs_gt_thresh]
+            # # the closet silent interval that we want to use is
+            # # the first index in indices of silent intervals,
+            # # sorted by distance to clip time,
+            # # that is greater than the threshold silent interval duration
+            # si_to_use_ind = si_nearest_gt_thresh[0]
+            # new_clip_times.append(
+            #     # clip halfway through the silent interval
+            #     si_start_times[si_to_use_ind] + si_durs[si_to_use_ind] / 2
+            # )
+
             new_clip_times.append(new_clip_time)
         else:
             # no need to move clip time
@@ -412,7 +439,10 @@ def make_clips_from_jourjine_et_al_2023(
         clip_csv_path = clip_wav_path.parent / (
             clip_wav_path.name + ".call.csv"
         )
-        clip_simple_seq.to_file(clip_csv_path)
+        try:
+            clip_simple_seq.to_file(clip_csv_path)
+        except:
+            breakpoint()
     all_clips_df = pd.DataFrame.from_records(records)
     all_clips_csv_path = sample.species_id_dst / (sample.wav_path.name + ".clip-times.csv")
     all_clips_df.to_csv(all_clips_csv_path)
@@ -466,8 +496,6 @@ def clip_wav_generate_annot_jourjine_et_al_2023(dry_run=True):
                 species_id_dst,
                 source_file
             )
-            # un-parallelizing for now to catch error
-            # make_clips_from_jourjine_et_al_2023(sample)
             todo.append(
                 dask.delayed(make_clips_from_jourjine_et_al_2023)(sample)
             )

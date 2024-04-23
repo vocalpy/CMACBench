@@ -12,6 +12,7 @@ import dask.delayed
 import librosa
 import numpy as np
 import pandas as pd
+import pandera.errors
 import scipy.signal
 import scipy.interpolate
 import tqdm
@@ -570,34 +571,57 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     frames_path = dst / frames_filename
     np.savez(frames_path, **spect_dict)
 
-    annot = SCRIBE.from_file(annot_path)
-    lbls_int = [labelmap[lbl] for lbl in annot.labels]
-    # NOTE: the data is labeled with a single label for all segments
-    # so we do not save a multi-class frame label vector
-    frame_labels_binary = vak.transforms.frame_labels.from_segments(
-        lbls_int,
-        annot.onsets_s,
-        annot.offsets_s,
-        t,
-        unlabeled_label=labelmap["unlabeled"],
-    )
-    uniq_lbls = set(np.unique(frame_labels_binary))
-    if not uniq_lbls == {0, 1}:
-        raise ValueError(
-            f"Expected unique values (0, 1) in frame labels but got: {uniq_lbls}"
-        )
-    frame_labels_binary_filename = get_binary_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
-    )
-    frame_labels_binary_path = dst / frame_labels_binary_filename
-    np.save(frame_labels_binary_path, frame_labels_binary)
+    HAS_SEGMENTS = True
+    try:
+        annot = SCRIBE.from_file(annot_path)
+    except pandera.errors.SchemaError:
+        import pandas as pd
+        df = pd.read_csv(annot_path)
+        if len(df) == 0:
+            HAS_SEGMENTS = False
 
-    boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_binary)
-    boundary_onehot_filename = get_boundary_onehot_filename(
-        audio_path, spect_params.timebin_dur, unit
-    )
-    boundary_onehot_path = dst / boundary_onehot_filename
-    np.save(boundary_onehot_path, boundary_onehot)
+    if HAS_SEGMENTS:
+        lbls_int = [labelmap[lbl] for lbl in annot.labels]
+        # NOTE: the data is labeled with a single label for all segments
+        # so we do not save a multi-class frame label vector
+        frame_labels_binary = vak.transforms.frame_labels.from_segments(
+            lbls_int,
+            annot.onsets_s,
+            annot.offsets_s,
+            t,
+            unlabeled_label=labelmap["unlabeled"],
+        )
+        uniq_lbls = set(np.unique(frame_labels_binary))
+        if not uniq_lbls == {0, 1}:
+            raise ValueError(
+                f"Expected unique values (0, 1) in frame labels but got: {uniq_lbls}"
+            )
+        frame_labels_binary_filename = get_binary_frame_labels_filename(
+            audio_path, spect_params.timebin_dur, unit
+        )
+        frame_labels_binary_path = dst / frame_labels_binary_filename
+        np.save(frame_labels_binary_path, frame_labels_binary)
+
+        boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_binary)
+        boundary_onehot_filename = get_boundary_onehot_filename(
+            audio_path, spect_params.timebin_dur, unit
+        )
+        boundary_onehot_path = dst / boundary_onehot_filename
+        np.save(boundary_onehot_path, boundary_onehot)
+    else:  # no segments
+        frame_labels_binary = np.zeros_like(t).astype(int)
+        frame_labels_binary_filename = get_binary_frame_labels_filename(
+            audio_path, spect_params.timebin_dur, unit
+        )
+        frame_labels_binary_path = dst / frame_labels_binary_filename
+        np.save(frame_labels_binary_path, frame_labels_binary)
+
+        boundary_onehot = np.zeros_like(t).astype(int)
+        boundary_onehot_filename = get_boundary_onehot_filename(
+            audio_path, spect_params.timebin_dur, unit
+        )
+        boundary_onehot_path = dst / boundary_onehot_filename
+        np.save(boundary_onehot_path, boundary_onehot)
 
 
 JOURJINE_ET_AL_2023_SPECT_PARAMS = [
@@ -630,9 +654,22 @@ def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dr
         todo = []
         pbar = tqdm.tqdm(zip(wav_paths, csv_paths))
         for wav_path, csv_path in pbar:
-            noise_floor = JOURJINE_ET_AL_2023_NOISE_FLOORS[wav_path.name]
-            if not dry_run:
-                audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
+            wav_name = wav_path.name
+            clip_ind = wav_name.find('clip-')
+            source_file = wav_name[:clip_ind] + "wav"
+            noise_floor = JOURJINE_ET_AL_2023_NOISE_FLOORS[source_file]
+            # if not dry_run:
+            #     audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
+            #         audio_path=wav_path,
+            #         annot_path=csv_path,
+            #         spect_params=spect_params,
+            #         noise_floor=noise_floor,
+            #         dst=id_dir,
+            #         labelmap=labelmap,
+            #         unit=unit,
+            #     )
+            todo.append(
+                dask.delayed(audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023)(
                     audio_path=wav_path,
                     annot_path=csv_path,
                     spect_params=spect_params,
@@ -641,21 +678,10 @@ def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dr
                     labelmap=labelmap,
                     unit=unit,
                 )
-        # FIXME: when I run parallelized with dask I get `killed` -- out of memory error?
-        #     todo.append(
-        #         dask.delayed(audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023)(
-        #             audio_path=wav_path,
-        #             annot_path=csv_path,
-        #             spect_params=spect_params,
-        #             noise_floor=noise_floor,
-        #             dst=id_dir,
-        #             labelmap=labelmap,
-        #             unit=unit,
-        #         )
-        #     )
-        # if not dry_run:
-        #     with ProgressBar():
-        #         dask.compute(*todo)
+            )
+        if not dry_run:
+            with ProgressBar():
+                dask.compute(*todo)
 
 
 JOURJINE_ET_AL_2023_LABELSET = ["v"]
@@ -1141,7 +1167,7 @@ def make_inputs_and_targets_human_speech(dry_run=True):
     TIMIT_DIALECT_SPKR_DIRS = [
         dir_ for dir_ in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
         if dir_.is_dir()
-    ] + [dir_ for dir_ in constants.SPEECH_DATA_DST if dir_.is_dir()]
+    ] + [dir_ for dir_ in constants.SPEECH_DATA_DST.iterdir() if dir_.is_dir()]
 
     species_id_labelmap_map = labels.get_labelmaps()
     labelmap = species_id_labelmap_map['Human-Speech']['phoneme']['all']

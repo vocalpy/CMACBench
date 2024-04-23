@@ -1,9 +1,10 @@
-from collections import defaultdict
 import logging
 import shutil
+from collections import defaultdict
 
 import crowsetta
 import numpy as np
+import pandera.errors
 from tqdm.notebook import tqdm
 import vocalpy as voc
 
@@ -31,8 +32,16 @@ def _qc_annot(data_dir, unit):
             f"len(wav_paths)={len(wav_paths)} != len(csv_paths)={len(csv_paths)}"
         )
     id_ = data_dir.name.split('-')[-1]
+    n_csv_paths_with_no_segments = 0
     for wav_path, csv_path in zip(wav_paths, csv_paths):
-        simpleseq = SCRIBE.from_file(csv_path)
+        try:
+            simpleseq = SCRIBE.from_file(csv_path)
+        except pandera.errors.SchemaError:
+            import pandas as pd
+            df = pd.read_csv(csv_path)
+            if len(df) == 0:
+                n_csv_paths_with_no_segments += 1
+                continue
         if simpleseq.onsets_s[0] < 0.:
             logger.info(
                 f"File has first onset less than 0: {csv_path.name}"
@@ -66,6 +75,10 @@ def _qc_annot(data_dir, unit):
                 )
                 invalid_starts_stops.append((wav_path, csv_path))
 
+    logger.info(
+        f"Found {n_csv_paths_with_no_segments} csv paths with no annotated segments, "
+        f"{n_csv_paths_with_no_segments / len(csv_paths) * 100:.2f}% of csv paths"
+    )
     return first_onset_lt_zero, any_onset_lt_zero, any_offset_lt_zero, invalid_starts_stops
 
 
