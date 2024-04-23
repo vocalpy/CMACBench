@@ -61,10 +61,10 @@ TWEETYNET_BIRD_IDS = (
 )
 
 # -------- Mouse pup calls
-MOUSE_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Call"
+MOUSE_PUP_CALL_RAW_DATA = RAW_DATA_ROOT / "Mouse-Pup-Call"
 
 # ------------- Jourjine et al. 2023 dataset
-JOURJINE_ET_AL_2023_DATA = MOUSE_RAW_DATA / "Jourjine-et-al-2023"
+JOURJINE_ET_AL_2023_DATA = MOUSE_PUP_CALL_RAW_DATA / "Jourjine-et-al-2023"
 JOURJINE_ET_AL_2023_SEGS_DIR = JOURJINE_ET_AL_2023_DATA / "processed_data" / "supplemental_figure_5"
 JOURJINE_ET_AL_2023_MOUSE_SPECIES = (
     'BK',

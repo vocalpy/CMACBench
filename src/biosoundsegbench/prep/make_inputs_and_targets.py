@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 import crowsetta
 import dask.delayed
-from dask.diagnostics import ProgressBar
 import librosa
 import numpy as np
 import pandas as pd
@@ -18,6 +17,7 @@ import scipy.interpolate
 import tqdm
 import vak
 import vocalpy as voc
+from dask.diagnostics import ProgressBar
 from vak.prep.spectrogram_dataset.spect import spectrogram
 
 from . import constants, labels
