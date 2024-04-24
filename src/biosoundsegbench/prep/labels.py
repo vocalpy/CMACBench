@@ -30,7 +30,7 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
     'Canary-Song': {
         'syllable': {
             'llb3': "range: 1-20",
-            'llb11': "range: 1-30",
+            'llb11': "range: 1-27",
             'llb16': "range: 1-30",
         },
     },
@@ -38,7 +38,20 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
         'syllable': {
             'blu285': ['syll_0', 'syll_1', 'syll_2', 'syll_3', 'syll_4', 'syll_5']
         },
-    }
+    },
+    'Human-Speech': {
+        'phoneme': {
+            # these 61 phoneme labels appear in both the training set -- the full TIMIT corpus --
+            # and the test set -- the corpus sample that's in NLTK data and on Kaggle
+            'all': [
+                'aa', 'ae', 'ah', 'ao', 'aw', 'ax', 'ax-h', 'axr', 'ay', 'b', 'bcl', 'ch',
+                 'd', 'dcl', 'dh', 'dx', 'eh', 'el', 'em', 'en', 'eng', 'epi', 'er', 'ey',
+                 'f', 'g', 'gcl', 'h#', 'hh', 'hv', 'ih', 'ix', 'iy', 'jh', 'k', 'kcl', 'l',
+                 'm', 'n', 'ng', 'nx', 'ow', 'oy', 'p', 'pau', 'pcl', 'q', 'r', 's', 'sh',
+                 't', 'tcl', 'th', 'uh', 'uw', 'ux', 'v', 'w', 'y', 'z', 'zh'
+            ]
+        },
+    },
 }
 
 
@@ -62,36 +75,6 @@ def make_labelsets_from_constant(dry_run=True):
 
 
 SCRIBE = crowsetta.Transcriber(format="simple-seq")
-
-
-def make_timit_labelsets_from_annot_files():
-    """Make TIMIT labelsets from phoneme annotation files.
-
-    Instead of computing per-speaker ID labelset,
-    for human speech we assume the same set of phoneme classes
-    for all speakers.
-    """
-    TIMIT_DIALECT_SPKR_DIRS = [
-        dir_ for dir_ in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
-        if dir_.is_dir()
-    ]
-
-    id_labelset_map = {}
-
-    labels = []
-    for dir_ in TIMIT_DIALECT_SPKR_DIRS:
-        speaker_id = dir_.name.split('-')[-1]
-        logger.info(
-            f"Computing labelset for TIMIT speaker ID: {speaker_id}"
-        )
-        csv_paths = sorted(dir_.glob(f"*.phoneme.csv"))
-        labels.extend(
-            [lbl
-             for csv_path in csv_paths
-             for lbl in SCRIBE.from_file(csv_path).to_seq().labels]
-        )
-    # next line, set to find unique labels; list so we can dump to json
-    return list(set(labels))
 
 
 def set_to_map(group_unit_id_labelsets_map):
@@ -129,14 +112,6 @@ def make_labelsets_and_labelmaps(dry_run=True):
         f"Making labelsets from module-level constant GROUP_UNIT_ID_LABELSTR_MAP"
     )
     group_unit_id_labelsets_map = make_labelsets_from_constant()
-    logger.info(
-        f"Making labelsets for human speech, from TIMIT dataset phoneme annotations"
-    )
-    group_unit_id_labelsets_map['Human-Speech'] = {}
-    group_unit_id_labelsets_map['Human-Speech']['phoneme'] = {}
-    phoneme_labelset = make_timit_labelsets_from_annot_files()
-    # we assume same set of classes for all speakers
-    group_unit_id_labelsets_map['Human-Speech']['phoneme']['all'] = phoneme_labelset
 
     logger.info(
         f"Final group_unit_id_labelsets_map:\n{group_unit_id_labelsets_map}"

@@ -1132,13 +1132,13 @@ def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True
     if phn_paths_fnd != len(phn_paths):
         raise ValueError(
             f"Found {phn_paths_fnd} phoneme annotation paths when pairing "
-            f"but found {len(phn_paths)} in directory:\n{speaker_id_dir}"
+            f"but found {len(phn_paths)} total phoneme annotation paths in directory:\n{speaker_id_dir}"
         )
 
     if wrd_paths_fnd != len(wrd_paths):
         raise ValueError(
             f"Found {wrd_paths_fnd} word annotation paths when pairing "
-            f"but found {len(wrd_paths)} in directory:\n{speaker_id_dir}"
+            f"but found {len(wrd_paths)} total word annotation paths in directory:\n{speaker_id_dir}"
         )
 
     for mfcc_params in HUMAN_SPEECH_MFCC_PARAMS:
