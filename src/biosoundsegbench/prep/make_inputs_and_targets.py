@@ -582,46 +582,52 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
 
     if HAS_SEGMENTS:
         lbls_int = [labelmap[lbl] for lbl in annot.labels]
-        # NOTE: the data is labeled with a single label for all segments
-        # so we do not save a multi-class frame label vector
-        frame_labels_binary = vak.transforms.frame_labels.from_segments(
+        frame_labels_multi = vak.transforms.frame_labels.from_segments(
             lbls_int,
             annot.onsets_s,
             annot.offsets_s,
             t,
             unlabeled_label=labelmap["unlabeled"],
         )
-        uniq_lbls = set(np.unique(frame_labels_binary))
-        if not uniq_lbls == {0, 1}:
-            raise ValueError(
-                f"Expected unique values (0, 1) in frame labels but got: {uniq_lbls}"
-            )
+        frame_labels_multi_filename = get_multi_frame_labels_filename(
+            audio_path, timebin_dur, unit
+        )
+        frame_labels_multi_path = dst / frame_labels_multi_filename
+        np.save(frame_labels_multi_path, frame_labels_multi)
+
+        frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
         frame_labels_binary_filename = get_binary_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, timebin_dur, unit
         )
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, frame_labels_binary)
 
-        boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_binary)
+        boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
         boundary_onehot_filename = get_boundary_onehot_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, timebin_dur, unit
         )
         boundary_onehot_path = dst / boundary_onehot_filename
         np.save(boundary_onehot_path, boundary_onehot)
+
     else:  # no segments
-        frame_labels_binary = np.zeros_like(t).astype(int)
+        all_zeros_vector = np.zeros_like(t).astype(int)
+        frame_labels_multi_filename = get_multi_frame_labels_filename(
+            audio_path, spect_params.timebin_dur, unit
+        )
+        frame_labels_multi_path = dst / frame_labels_multi_filename
+        np.save(frame_labels_multi_path, all_zeros_vector)
+
         frame_labels_binary_filename = get_binary_frame_labels_filename(
             audio_path, spect_params.timebin_dur, unit
         )
         frame_labels_binary_path = dst / frame_labels_binary_filename
-        np.save(frame_labels_binary_path, frame_labels_binary)
+        np.save(frame_labels_binary_path, all_zeros_vector)
 
-        boundary_onehot = np.zeros_like(t).astype(int)
         boundary_onehot_filename = get_boundary_onehot_filename(
             audio_path, spect_params.timebin_dur, unit
         )
         boundary_onehot_path = dst / boundary_onehot_filename
-        np.save(boundary_onehot_path, boundary_onehot)
+        np.save(boundary_onehot_path, all_zeros_vector)
 
 
 JOURJINE_ET_AL_2023_SPECT_PARAMS = [
@@ -684,11 +690,6 @@ def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dr
                 dask.compute(*todo)
 
 
-JOURJINE_ET_AL_2023_LABELSET = ["v"]
-JOURJINE_ET_AL_2023_LABELSET = vak.common.converters.labelset_to_set(JOURJINE_ET_AL_2023_LABELSET)
-JOURJINE_ET_AL_2023_LABELMAP = vak.common.labels.to_map(JOURJINE_ET_AL_2023_LABELSET)
-
-
 def make_inputs_and_targets_mouse_pup_call(dry_run=True):
     """Make inputs and targets for neural network models,
     for mouse pup call data.
@@ -702,6 +703,8 @@ def make_inputs_and_targets_mouse_pup_call(dry_run=True):
     2. For this set of spectrograms, make following targets:
     multi-class frame label, binary frame label, boundary detection vector
     """
+    species_id_labelmap_map = labels.get_labelmaps()
+    labelmap = species_id_labelmap_map['Mouse-Pup-Call']['call']['all']
     MOUSE_ID_DIRS = sorted([
         dir_ for dir_ in constants.MOUSE_PUP_CALL_DATA_DST.iterdir() if dir_.is_dir()
     ])
@@ -713,7 +716,7 @@ def make_inputs_and_targets_mouse_pup_call(dry_run=True):
         )
         make_inputs_targets_jourjine_et_al_2023_id(
             id_dir,
-            labelmap=JOURJINE_ET_AL_2023_LABELMAP,
+            labelmap=labelmap,
             unit='call',
             dry_run=dry_run
         )

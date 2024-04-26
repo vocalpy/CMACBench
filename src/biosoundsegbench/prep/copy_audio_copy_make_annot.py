@@ -291,7 +291,10 @@ class JourjineEtAl2023Sample:
     this_file_segs_df: pd.DataFrame
     wav_path: pathlib.Path
     species_id_dst: pathlib.Path
+    segment_label: str
     source_file: str
+    clip_dur: float = 10.
+    n_clips_per_file: int = 10
 
 
 SEED = 42
@@ -300,9 +303,7 @@ RNG = np.random.default_rng(seed=SEED)
 
 def make_clips_from_jourjine_et_al_2023(
     sample: JourjineEtAl2023Sample,
-    clip_dur: float = 10.,  # seconds
     boundary_pad = 0.003,  # seconds
-    n_clips_per_file: int = 5,
     min_segs_for_random_clips: int = 750,
 ):
     simple_seq = crowsetta.formats.seq.SimpleSeq(
@@ -314,7 +315,7 @@ def make_clips_from_jourjine_et_al_2023(
     sound = voc.Audio.read(sample.wav_path)
     dur = sound.data.shape[-1] / sound.samplerate
     clip_times = np.arange(
-        0., dur, clip_dur
+        0., dur, sample.clip_dur
     )
     new_clip_times = []
     for clip_time in clip_times:
@@ -388,11 +389,11 @@ def make_clips_from_jourjine_et_al_2023(
         # but we still take clips with zero segments if there are any in the clips we get
         # using `n_clips_per_file`
         clip_inds = np.array(
-            [clip_ind_n_segs_tup[0] for clip_ind_n_segs_tup in clip_inds_sorted_by_n_segs[:n_clips_per_file]]
+            [clip_ind_n_segs_tup[0] for clip_ind_n_segs_tup in clip_inds_sorted_by_n_segs[:sample.n_clips_per_file]]
         )
     else:
         clip_inds = np.sort(
-            RNG.integers(new_clip_times.size - 1, size=n_clips_per_file)
+            RNG.integers(new_clip_times.size - 1, size=sample.n_clips_per_file)
         )
 
     clip_starts = new_clip_times[:-1][clip_inds]
@@ -433,24 +434,24 @@ def make_clips_from_jourjine_et_al_2023(
         clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
             onsets_s=clip_onsets_s,
             offsets_s=clip_offsets_s,
-            labels=np.array(['v'] * clip_offsets_s.size),
+            labels=np.array([sample.segment_label] * clip_offsets_s.size),
             annot_path='dummy',
         )
         clip_csv_path = clip_wav_path.parent / (
             clip_wav_path.name + ".call.csv"
         )
-        try:
-            clip_simple_seq.to_file(clip_csv_path)
-        except:
-            breakpoint()
+        clip_simple_seq.to_file(clip_csv_path)
     all_clips_df = pd.DataFrame.from_records(records)
     all_clips_csv_path = sample.species_id_dst / (sample.wav_path.name + ".clip-times.csv")
     all_clips_df.to_csv(all_clips_csv_path)
 
 
-def clip_wav_generate_annot_jourjine_et_al_2023(dry_run=True):
+def clip_wav_generate_annot_jourjine_et_al_2023(max_clips_per_species=300,
+                                                clip_dur: float = 10.,  # seconds
+                                                n_clips_per_file: int = 10,
+                                                dry_run=True):
     """Make clips from wav files and generate annotation files
-    for Jourjine et al. 2023 dataset
+    for Jourjine et al. 2023 mouse pup call dataset
 
     For this dataset, we sub-sample the audio files,
     which are almost all 10 minutes long.
@@ -470,6 +471,8 @@ def clip_wav_generate_annot_jourjine_et_al_2023(dry_run=True):
     segs_df = pd.read_csv(segs_csv_path)
 
     todo = []
+
+    n_clips_per_species = defaultdict(int)
     pbar = tqdm.tqdm(segs_df.source_file.unique())
     for source_file in pbar:
         pbar.set_description(
@@ -484,6 +487,9 @@ def clip_wav_generate_annot_jourjine_et_al_2023(dry_run=True):
             )
             continue
         species_id = source_file.split('_')[0]
+        if n_clips_per_species[species_id] >= max_clips_per_species:
+            # don't make anymore clips from this species
+            continue
         wav_path = constants.JOURJINE_ET_AL_2023_DATA / f"development{species_id}" / f"development_{species_id}" / source_file
         if wav_path.exists():
             species_id_dst = constants.MOUSE_PUP_CALL_DATA_DST / f"jourjine-et-al-2023-{species_id}"
@@ -494,18 +500,23 @@ def clip_wav_generate_annot_jourjine_et_al_2023(dry_run=True):
                 this_file_segs_df,
                 wav_path,
                 species_id_dst,
-                source_file
+                segment_label=species_id,
+                source_file=source_file,
+                clip_dur=clip_dur,
+                n_clips_per_file=n_clips_per_file,
             )
             todo.append(
                 dask.delayed(make_clips_from_jourjine_et_al_2023)(sample)
             )
+            n_clips_per_species[species_id] += n_clips_per_file
     if not dry_run:
         with ProgressBar():
             dask.compute(*todo)
 
 
 def copy_wav_convert_annot_steinfath_et_al_2021_zebra_finch(dry_run=True):
-    """
+    """Copy wav audio files and convert csv annotation files
+    for zebra finch song dataset from Steinfath et al. 2021
     """
     logger.info(
         f"Copying audio and annotation files for bird ID {constants.STEINFATH_ET_AL_2021_ZB_BIRD_ID} from Steinfath et al. 2021 dataset"
@@ -715,7 +726,7 @@ def copy_audio_copy_make_annot_all(biosound_groups, dry_run=True):
         logger.info(
             f"Getting audio and annotations for mouse pup song."
         )
-        clip_wav_generate_annot_jourjine_et_al_2023(dry_run)
+        clip_wav_generate_annot_jourjine_et_al_2023(dry_run=dry_run)
 
     # ---- Zebra finch song
     if "Zebra-Finch-Song" in biosound_groups:

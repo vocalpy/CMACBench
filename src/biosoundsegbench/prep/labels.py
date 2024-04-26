@@ -34,11 +34,6 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
             'llb16': "range: 1-30",
         },
     },
-    'Zebra-Finch-Song': {
-        'syllable': {
-            'blu285': ['syll_0', 'syll_1', 'syll_2', 'syll_3', 'syll_4', 'syll_5']
-        },
-    },
     'Human-Speech': {
         'phoneme': {
             # these 61 phoneme labels appear in both the training set -- the full TIMIT corpus --
@@ -52,6 +47,17 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
             ]
         },
     },
+    'Mouse-Pup-Call': {
+        'call': {
+            'all': ['BK', 'BW', 'GO', 'LL', 'LO', 'MU', 'MZ', 'NB', 'PO', 'SW']
+        },
+    },
+    'Zebra-Finch-Song': {
+        'syllable': {
+            'blu285': ['syll_0', 'syll_1', 'syll_2', 'syll_3', 'syll_4', 'syll_5']
+        },
+    },
+
 }
 
 
