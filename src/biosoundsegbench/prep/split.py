@@ -1,11 +1,13 @@
 """Functions to make dataset splits--training, validation, and test--and save as csv files in dataset root."""
 import logging
 import pathlib
-from dataclasses import dataclass
+from collections import defaultdict
+import dataclasses
 
 import crowsetta
 import numpy as np
 import pandas as pd
+import pandera.errors
 from tqdm.notebook import tqdm
 import vak
 import vocalpy as voc
@@ -14,52 +16,6 @@ from . import constants, labels
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_human_speech_train_data_dirs():
-    """Get list of directories with training data for human speech.
-
-    Each directory contains data from one speaker from one dialect region.
-    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE`.
-    The source data is from the full TIMIT corpus, minus the speakers that appear
-    in the NLTK sample, that is used for testing.
-    """
-    return sorted(
-        [id_dir
-         for id_dir in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
-         if id_dir.is_dir()]
-    )
-
-
-def get_human_speech_test_data_dirs():
-    """Get list of directories with test data for human speech.
-
-    Each directory contains data from one speaker from one dialect region.
-    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.SPEECH_DATA_DST`.
-    The source data is from the NLTK Sample of the TIMIT corpus.
-    """
-    return sorted(
-        [id_dir
-         for id_dir in biosoundsegbench.prep.constants.SPEECH_DATA_DST.iterdir()
-         if id_dir.is_dir()]
-    )
-
-
-def get_inputs_targets_human_speech(
-    split: str = 'train', task: str = 'boundary classification', unit='phoneme', timebin_dur_str: str = '1'
-):
-    """Get inputs and targets for neural network models for human speech data"""
-    if split == 'train':
-        data_dirs = get_human_speech_train_data_dirs()
-    elif split == 'test':
-        data_dirs = get_human_speech_test_data_dirs()
-
-    input_paths = []
-    target_paths = defaultdict(list)
-    for data_dir in data_dirs:
-        input_paths.extend(
-            get_frames_npz_paths
-        )
 
 
 def get_durs_from_wav_paths(wav_paths: list[pathlib.Path]):
@@ -72,26 +28,24 @@ def get_durs_from_wav_paths(wav_paths: list[pathlib.Path]):
     return durs
 
 
-# In[7]:
-
-
 SCRIBE = crowsetta.Transcriber(format='simple-seq')
 
 
 def get_labels_from_csv_paths(csv_paths: list[pathlib.Path]):
-    return [
-        SCRIBE.from_file(csv_path).to_seq().labels
-        for csv_path in csv_paths
-    ]
-
-
-# ### `get_split_wav_paths`
-#
-# Gets splits at the ID level. This should work for birdsong when we are training per-individual models.
-#
-# To really be able to compare with a generic segmenting model trained on multiple individuals, you would want the same amount of training data for both models. This raises the question of how you should allocate your data budget among multiple individuals.
-
-# In[8]:
+    all_labels = []
+    for csv_path in csv_paths:
+        try:
+            labels = SCRIBE.from_file(csv_path).to_seq().labels
+        except pandera.errors.SchemaError as e:
+            df = pd.read_csv(csv_path)
+            if len(df) == 0:
+                labels = np.array([])
+            else:
+                raise ValueError(
+                    f"Unable to parse csv_path: {csv_path}"
+                ) from e
+        all_labels.append(labels)
+    return all_labels
 
 
 def get_split_wav_paths(
@@ -114,15 +68,15 @@ def get_split_wav_paths(
     durs = get_durs_from_wav_paths(wav_paths)
     labels = get_labels_from_csv_paths(csv_paths)
 
-    # TODO: here we get total training pool of 10k seconds
-    # later we will make "folds" of training data, say 3 splits
-    train_inds, test_inds, val_inds = vak.prep.split.split.train_test_dur_split_inds(
+    # here we get total pool of training data
+    # later we will make subsets of training data for each training replicate
+    train_inds, val_inds, test_inds = vak.prep.split.split.train_test_dur_split_inds(
         durs,
         labels,
         labelset,
         train_dur,
         test_dur,
-        val_dur
+        val_dur,
     )
 
     return {
@@ -130,9 +84,6 @@ def get_split_wav_paths(
         'val': [wav_paths[val_ind] for val_ind in val_inds],
         'test': [wav_paths[test_ind] for test_ind in test_inds],
     }
-
-
-# In[9]:
 
 
 TARGET_COLUMNS = [
@@ -158,7 +109,7 @@ def split_wav_paths_to_df(
             f"Valid columns are: {TARGET_COLUMNS}"
         )
 
-    timebin_dur = int(timebin_dur_str) * 1e-3
+    timebin_dur = float(timebin_dur_str) * 1e-3
     records = []
     for split, audio_paths in split_wav_paths.items():
         for audio_path in audio_paths:
@@ -186,13 +137,13 @@ def split_wav_paths_to_df(
 
             record = {
                 'audio_path': str(
-                    audio_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    audio_path.relative_to(constants.DATASET_ROOT)
                 ),
                 'annot_path': str(
-                    annot_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    annot_path.relative_to(constants.DATASET_ROOT)
                 ),
                 'frames_path': str(
-                    frames_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    frames_path.relative_to(constants.DATASET_ROOT)
                 ),
                 'timebin_dur': timebin_dur,
                 'duration': duration,
@@ -207,11 +158,11 @@ def split_wav_paths_to_df(
                 if not multi_frame_labels_path.exists():
                     raise FileNotFoundError(
                         f"Did not find `multi_frame_labels_path` for `audio_path`.\n"
-                        f"`audio_path`: {audio_path}"
-                        f"`multi_frame_labels_path`: {annot_path}"
+                        f"`audio_path`: {audio_path}\n"
+                        f"`multi_frame_labels_path`: {multi_frame_labels_path}\n"
                     )
                 record['multi_frame_labels_path'] = str(
-                    multi_frame_labels_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    multi_frame_labels_path.relative_to(constants.DATASET_ROOT)
                 )
 
             if "binary_frame_labels_path" in target_columns:
@@ -225,7 +176,7 @@ def split_wav_paths_to_df(
                         f"`binary_frame_labels_path`: {binary_frame_labels_path}"
                     )
                 record['binary_frame_labels_path'] = str(
-                    binary_frame_labels_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    binary_frame_labels_path.relative_to(constants.DATASET_ROOT)
                 )
 
             if "boundary_onehot_path" in target_columns:
@@ -239,21 +190,11 @@ def split_wav_paths_to_df(
                         f"`boundary_onehot_path`: {boundary_onehot_path}"
                     )
                 record['boundary_onehot_path'] = str(
-                    boundary_onehot_path.relative_to(biosoundsegbench.prep.constants.DATASET_ROOT)
+                    boundary_onehot_path.relative_to(constants.DATASET_ROOT)
                 )
             records.append(record)
     df = pd.DataFrame.from_records(records)
     return df
-
-
-# For canaries, we report training on 3600s, and I had guesstimated to use a training data pool of 10k seconds, then do 3 3600s grabs from that for training replicates.
-# Close to what we did in the TweetyNet paper.
-#
-# For Birdsong-Recognition dataset, Bird0 has just 1380s of data.
-# So that limits how much we can train on -- we can't do 1800s training sets for the Birdsong-Recognition birds.
-# Probably better to do Leave-One-Bird-Out with the BFSongRepo birds because there we have much more data.
-
-# In[10]:
 
 
 def get_df_with_train_subset(
@@ -261,13 +202,15 @@ def get_df_with_train_subset(
     train_subset_dur: float,
     labelset: set,
     keep_val_and_test_split: bool,
-    n_iters=10
+    n_iters=10,
 ):
     """Given a DataFrame representing splits in a dataset,
     return a new DataFrame where the 'train' split is a subset of the total training data
     in the original DataFrame."""
     df_train = df[df.split == 'train'].copy()
-    labels = vak.common.labels.from_df(df_train, biosoundsegbench.prep.constants.DATASET_ROOT)
+    csv_paths = [constants.DATASET_ROOT / csv_path
+                 for csv_path in df_train.annot_path.values]
+    labels = get_labels_from_csv_paths(csv_paths)
     durs = df_train['duration'].values
 
     # Because of how `train_test_dur_split_inds` works, we will get a split with duration >= train_subset_dur.
@@ -289,15 +232,22 @@ def get_df_with_train_subset(
         )
     subset_durs = np.array([df.duration.sum() for df in subset_dfs])
     ind_of_df_with_dur_closest_to_target = np.argmin([subset_dur - train_subset_dur for subset_dur in subset_durs])
+    logger.info(
+        f"Actual duration of randomly-drawn subset of training split: {subset_durs[ind_of_df_with_dur_closest_to_target]}"
+    )
     df_out = subset_dfs[ind_of_df_with_dur_closest_to_target]
     if keep_val_and_test_split:
+        logger.info(
+            f"Adding validation and test splits to subset of training split"
+        )
         df_out = pd.concat(
             (df_out, df[df.split.isin(('val', 'test'))])
         )
+    else:
+        logger.info(
+            f"Not adding validation and test splits to subset of training split, just returning training subset"
+        )
     return df_out
-
-
-# In[11]:
 
 
 def get_splits_csv_filename_id(biosound_group: str, id: str, timebin_dur_str, unit: str) -> str:
@@ -307,9 +257,6 @@ def get_splits_csv_filename_id(biosound_group: str, id: str, timebin_dur_str, un
     while holding the validation and test set constant.
     """
     return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.splits.csv"
-
-
-# In[12]:
 
 
 def get_replicate_csv_filename_id_data_only(
@@ -325,9 +272,6 @@ def get_replicate_csv_filename_id_data_only(
     return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
 
 
-# In[13]:
-
-
 def get_replicate_csv_filename_leave_one_id_out(
     biosound_group: str, id: str, timebin_dur_str, unit: str, train_dur: float, replicate_num: int,
 ) -> str:
@@ -341,14 +285,11 @@ def get_replicate_csv_filename_leave_one_id_out(
     return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.leave-one-id-out.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
 
 
-# In[14]:
-
-
 BIOSOUND_GROUP_DIR_MAP = {
-    'Bengalese-Finch-Song': biosoundsegbench.prep.constants.BF_DATA_DST,
-    'Canary-Song': biosoundsegbench.prep.constants.CANARY_DATA_DST,
-    'Mouse-Pup-Call': biosoundsegbench.prep.constants.MOUSE_PUP_CALL_DATA_DST,
-    'Zebra-Finch-Song': biosoundsegbench.prep.constants.ZB_DATA_DST,
+    'Bengalese-Finch-Song': constants.BF_DATA_DST,
+    'Canary-Song': constants.CANARY_DATA_DST,
+    'Mouse-Pup-Call': constants.MOUSE_PUP_CALL_DATA_DST,
+    'Zebra-Finch-Song': constants.ZB_DATA_DST,
 }
 
 
@@ -362,6 +303,7 @@ def get_splits_df_and_replicate_dfs_per_id(
     train_subset_dur: float,
     num_replicates: int,
     target_columns=TARGET_COLUMNS,
+    use_id_all_for_labelset: bool = False,
     dry_run=True,
 ):
     group_dir = BIOSOUND_GROUP_DIR_MAP[biosound_group]
@@ -370,20 +312,33 @@ def get_splits_df_and_replicate_dfs_per_id(
         for subdir in group_dir.iterdir()
         if subdir.is_dir()
     ]
-    print(
+    logger.info(
         f"Found ID dirs:\n{id_dirs}"
     )
-    labelsets = biosoundsegbench.prep.labels.get_labelsets()[biosound_group][unit]
+    labelsets = labels.get_labelsets()[biosound_group][unit]
 
     id_splits_df_map = {}
     id_replicate_dfs_map = defaultdict(list)
     for id_dir in id_dirs:
         id = id_dir.name.split('-')[-1]
-        print(
+        logger.info(
             f"Getting splits for ID: {id}"
         )
-        labelset = set(
-            labelsets[id]
+        if biosound_group == "Mouse-Pup-Call" and unit == "call":
+            # we have to special-case mouse pup call:
+            # since we label segments with species class, data from a single ID only has labels from that ID
+            labelset = set([id])
+        elif use_id_all_for_labelset:
+            # this applies to human speech only
+            labelset = set(labelsets['all'])
+        else:
+            labelset = set(
+                labelsets[id]
+            )
+        logger.info(
+            f"Getting wav paths for splits:\ntraining split with duration of {total_train_dur} s\n"
+            f"validation split with duration of {val_dur} s\n"
+            f"test set with duration of {test_dur}\n"
         )
         split_wav_paths = get_split_wav_paths(
             id_dir,
@@ -393,36 +348,65 @@ def get_splits_df_and_replicate_dfs_per_id(
             labelset=labelset,
             unit=unit
         )
+        for split_name, wav_paths_list in split_wav_paths.items():
+            logger.info(
+                f"Found {len(wav_paths_list)} wav paths for split '{split_name}'"
+            )
+        logger.info(
+            f"Building DataFrame with neural network labels and targets from wav paths."
+        )
         splits_df = split_wav_paths_to_df(
             split_wav_paths,
             unit,
             timebin_dur_str,
             target_columns,
         )
+        splits_df['id'] = id
+        splits_df['group'] = biosound_group
+        splits_from_df = sorted(splits_df.split.unique())
+        logger.info(
+            f"Splits in DataFrame with all splits: {splits_from_df}"
+        )
+        for split in splits_from_df:
+            logger.info(
+                f"Split '{split}' has duration: {splits_df[splits_df.split == split].duration.sum()}"
+            )
         id_splits_df_map[id] = splits_df
 
         splits_csv_filename = get_splits_csv_filename_id(biosound_group, id, timebin_dur_str, unit)
-        splits_csv_path = biosoundsegbench.prep.constants.DATASET_ROOT / splits_csv_filename
-        print(
+        splits_csv_path = constants.DATASET_ROOT / splits_csv_filename
+        logger.info(
             f"Saving splits as: {splits_csv_path}"
         )
         if not dry_run:
             splits_df.to_csv(splits_csv_path, index=False)
 
-        print(
+        logger.info(
             f"Getting {num_replicates} training replicates, "
             f"each with training split that has a duration of {train_subset_dur} s."
         )
         for replicate_num in range(1, num_replicates + 1):
+            logger.info(
+                f"Getting subset of training data for training replicate {replicate_num}."
+            )
             replicate_df = get_df_with_train_subset(
                 splits_df, train_subset_dur, labelset, keep_val_and_test_split=True,
             )
+            splits_from_df = sorted(replicate_df.split.unique())
+            logger.info(
+                f"Splits in DataFrame for training replicate: {splits_from_df}"
+            )
+            for split in splits_from_df:
+                logger.info(
+                    f"Split '{split}' has duration: {replicate_df[replicate_df.split == split].duration.sum()}"
+                )
+
             id_replicate_dfs_map[id].append(replicate_df)
             replicate_csv_filename = get_replicate_csv_filename_id_data_only(
                 biosound_group, id, timebin_dur_str, unit, train_subset_dur, replicate_num
             )
-            replicate_csv_path = biosoundsegbench.prep.constants.DATASET_ROOT / replicate_csv_filename
-            print(
+            replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+            logger.info(
                 f"Saving replicate as: {replicate_csv_path}"
             )
             if not dry_run:
@@ -431,62 +415,114 @@ def get_splits_df_and_replicate_dfs_per_id(
     return id_splits_df_map, id_replicate_dfs_map
 
 
-# In[20]:
-
-
 def make_leave_one_out_df_per_id(
     id_replicate_df_map: dict,
     biosound_group: str,
     unit: str,
-    train_subset_dur: float | None = None,
+    train_subset_dur: float,
+    train_subset_dur_per_id: float | None = None,
     use_id_all_for_labelset=False,
+    n_iter=100,
 ):
-    labelsets = biosoundsegbench.prep.labels.get_labelsets()[biosound_group][unit]
+    """Make DataFrames representing splits for leave-one-ID-out experiments.
+
+    Takes a dict mapping IDs from a group to a list of DataFrames,
+    one DataFrame for each training replicate.
+    For each ID, combines training splits from all other IDs,
+    and keeps the same validation and test splits for that ID.
+
+    """
+    labelsets = labels.get_labelsets()[biosound_group][unit]
 
     id_leave_one_out_df_map = {}
     ids = list(id_replicate_df_map.keys())
     for test_id in ids:
-        leave_one_out_dfs = []
+        # list of DataFrames that we pd.concat after loop
+        leave_one_out_df = []
 
         train_ids = [id_ for id_ in ids if id_ != test_id]
         for train_id in train_ids:
             train_id_df = id_replicate_df_map[train_id]
-            if train_subset_dur is not None:
-                if use_id_all_for_labelset:
+            if train_subset_dur_per_id is None:
+                # remove val and test splits for this ID "manually" (instead of in function call as in 'if' block)
+                train_id_df = train_id_df[train_id_df.split == 'train'].copy()
+                leave_one_out_df.append(train_id_df)
+            else:
+                # we get a training subset of a specified duration **per ID**
+                if biosound_group == "Mouse-Pup-Call" and unit == "call":
+                    # we have to special-case mouse pup call:
+                    # since we label segments with species class, data from a single ID only has labels from that ID
+                    labelset = set([train_id])
+                elif use_id_all_for_labelset:
                     labelset = set(labelsets['all'])
                 else:
                     labelset = set(labelsets[train_id])
                 subset_df = get_df_with_train_subset(
-                    train_id_df, train_subset_dur, labelset, keep_val_and_test_split=False
+                    train_id_df, train_subset_dur_per_id, labelset, keep_val_and_test_split=False
                 )
-                leave_one_out_dfs.append(subset_df)
-            else:
-                leave_one_out_dfs.append(train_id_df)
+                leave_one_out_df.append(subset_df)
 
         test_id_df = id_replicate_df_map[test_id]
         test_id_df = test_id_df[test_id_df.split.isin(('val', 'test'))].copy()
-        leave_one_out_dfs.append(test_id_df)
+        leave_one_out_df.append(test_id_df)
 
-        id_leave_one_out_df_map[test_id]  = pd.concat(leave_one_out_dfs)
+        leave_one_out_df = pd.concat(leave_one_out_df)
+        if train_subset_dur_per_id is not None:
+            # we need to take another subset so we don't
+            # end up having a total training split > train_subset_dir.
+            # This happens because of how we draw subsets -- would need a better method to avoid
+            if biosound_group == "Mouse-Pup-Call" and unit == "call":
+                # we have to special-case mouse pup call:
+                # since we label segments with species class, data from a single ID only has labels from that ID
+                labelset = set(train_ids)
+            elif use_id_all_for_labelset:
+                labelset = set(labelsets['all'])
+            else:
+                labelset = []
+                for train_id in train_ids:
+                    labelset.extend(labelsets[train_id])
+                labelset = set(labelset)
+            for iter_n in tqdm(range(n_iter)):
+                tmp_df = get_df_with_train_subset(
+                    leave_one_out_df, train_subset_dur, labelset, keep_val_and_test_split=True
+                )
+                if set(tmp_df[tmp_df.split == 'train'].id.unique()) == set(train_ids):
+                    leave_one_out_df = tmp_df
+                    break
+                if iter_n == n_iter - 1:
+                    raise ValueError(
+                        f"Could not find subset with all train IDs in train split"
+                    )
+
+        splits_from_df = sorted(leave_one_out_df.split.unique())
+        logger.info(
+            f"Splits in DataFrame for leave-one-ID-out training replicate: {splits_from_df}"
+        )
+        for split in splits_from_df:
+            logger.info(
+                f"Split '{split}' has duration: {leave_one_out_df[leave_one_out_df.split == split].duration.sum()}"
+            )
+            logger.info(
+                f"Split '{split}' has IDs: {sorted(leave_one_out_df[leave_one_out_df.split == split].id.unique())}"
+            )
+        id_leave_one_out_df_map[test_id]  = leave_one_out_df
     return id_leave_one_out_df_map
-
-
-# In[23]:
 
 
 def make_splits_per_id(
     biosound_group: str,
     unit: str,
     timebin_dur_str: str,
-    total_train_dur: int,
-    val_dur: int,
-    test_dur: int,
-    train_subset_dur_id_only: int,
+    total_train_dur: float,
+    val_dur: float,
+    test_dur: float,
+    train_subset_dur_id_only: float,
     num_replicates: int,
     train_subset_dur_leave_one_id_out: int | None = None,
     target_columns: list[str] =TARGET_COLUMNS,
     dry_run: bool = True,
-    use_id_all_for_labelset: bool = False
+    use_id_all_for_labelset: bool = False,
+    make_leave_one_id_out_splits=True,
 ):
     """Make splits per ID.
 
@@ -517,7 +553,7 @@ def make_splits_per_id(
     Finally we make another set of leave-one-out splits where we combine *all* the training data
     from all other IDs.
     """
-    print(
+    logger.info(
         f"Making per-ID splits for biosound group '{biosound_group}', unit '{unit}', and timebin {timebin_dur_str}. "
         f"Splits will have a training split with duration of {total_train_dur} s, a validation split with duration of {val_dur} s, "
         f"and a test set with duration of {test_dur}. For each ID will there will be {num_replicates} training replicates, "
@@ -533,115 +569,428 @@ def make_splits_per_id(
         train_subset_dur_id_only,
         num_replicates,
         target_columns,
+        use_id_all_for_labelset,
         dry_run,
     )
 
-    # make leave-one-out csvs
-    ids = list(id_splits_df_map.keys())
-    if train_subset_dur_leave_one_id_out is None:
-        # we want the same duration for the training set, but with the data
-        # divided equally among each of the IDs that will be in the training set
-        train_subset_dur_leave_one_id_out = train_subset_dur_id_only / (len(ids) - 1)
-
-    # note here we grab subsets from the training replicate *subsets* for each ID;
-    # we're not grabbing from the total training pool
-    for replicate_num in range(1, num_replicates + 1):
-        id_replicate_df_map = {
-            id_: id_replicate_dfs_map[id_][replicate_num - 1]
-            for id_ in ids
-        }
-        id_leave_one_out_df_map = make_leave_one_out_df_per_id(
-            id_replicate_df_map,
-            biosound_group,
-            unit,
-            train_subset_dur_leave_one_id_out,
-            use_id_all_for_labelset,
+    if make_leave_one_id_out_splits:
+        # make leave-one-out csvs
+        logger.info(
+            "\nMaking leave-one-ID-out splits for each training replicate, with same-sized training set duration"
         )
-        for id, leave_one_out_df in id_leave_one_out_df_map.items():
-            replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
-                biosound_group, id, timebin_dur_str, unit, train_subset_dur_leave_one_id_out, replicate_num
-            )
-            replicate_csv_path = biosoundsegbench.prep.constants.DATASET_ROOT / replicate_csv_filename
-            print(
-                f"Saving replicate as: {replicate_csv_path}"
-            )
-            if not dry_run:
-                replicate_df.to_csv(replicate_csv_path, index=False)
+        ids = list(id_splits_df_map.keys())
+        if train_subset_dur_leave_one_id_out is None:
+            # we want the same duration for the training set, but with the data
+            # divided equally among each of the IDs that will be in the training set
+            train_subset_dur_leave_one_id_out = train_subset_dur_id_only / (len(ids) - 1)
 
-    # TODO: now make the leave-one-out CSVs where we use *all* the training data for each ID
-    n_train_ids = len(ids) - 1
-    train_dur_from_n_train_ids = train_subset_dur_id_only * n_train_ids
-    for replicate_num in range(1, num_replicates + 1):
-        id_replicate_df_map = {
-            id_: id_replicate_dfs_map[id_][replicate_num - 1]
-            for id_ in ids
-        }
-        id_leave_one_out_df_map = make_leave_one_out_df_per_id(
-            id_replicate_df_map,
-            biosound_group,
-            unit,
-            train_subset_dur_leave_one_id_out=None,
-            use_id_all_for_labelset=use_id_all_for_labelset,
+        # note here we grab subsets from the training replicate *subsets* for each ID;
+        # we're not grabbing from the total training pool
+        for replicate_num in range(1, num_replicates + 1):
+            id_replicate_df_map = {
+                id_: id_replicate_dfs_map[id_][replicate_num - 1]
+                for id_ in ids
+            }
+            id_leave_one_out_df_map = make_leave_one_out_df_per_id(
+                id_replicate_df_map,
+                biosound_group,
+                unit,
+                train_subset_dur_per_id=train_subset_dur_leave_one_id_out,
+                train_subset_dur=train_subset_dur_id_only,
+                use_id_all_for_labelset=use_id_all_for_labelset,
+            )
+            for id, leave_one_out_df in id_leave_one_out_df_map.items():
+                replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
+                    biosound_group, id, timebin_dur_str, unit, train_subset_dur_leave_one_id_out, replicate_num
+                )
+                replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+                logger.info(
+                    f"Saving replicate as: {replicate_csv_path}"
+                )
+                if not dry_run:
+                    leave_one_out_df.to_csv(replicate_csv_path, index=False)
+
+        # now make the leave-one-out CSVs where we use *all* the training data for each ID
+        logger.info(
+            "\nMaking leave-one-ID-out splits for each training replicate, "
+            "with training set duration = per-ID duration * num. train IDs"
         )
-        for id, leave_one_out_df in id_leave_one_out_df_map.items():
-            replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
-                biosound_group, id, timebin_dur_str, unit, train_dur_from_n_train_ids, replicate_num
+        n_train_ids = len(ids) - 1
+        train_dur_from_n_train_ids = train_subset_dur_id_only * n_train_ids
+        for replicate_num in range(1, num_replicates + 1):
+            id_replicate_df_map = {
+                id_: id_replicate_dfs_map[id_][replicate_num - 1]
+                for id_ in ids
+            }
+            id_leave_one_out_df_map = make_leave_one_out_df_per_id(
+                id_replicate_df_map,
+                biosound_group,
+                unit,
+                train_subset_dur=train_subset_dur_id_only * n_train_ids,
+                train_subset_dur_per_id=None,
+                use_id_all_for_labelset=use_id_all_for_labelset,
             )
-            replicate_csv_path = biosoundsegbench.prep.constants.DATASET_ROOT / replicate_csv_filename
-            print(
-                f"Saving replicate as: {replicate_csv_path}"
-            )
-            if not dry_run:
-                replicate_df.to_csv(replicate_csv_path, index=False)
+            for id, leave_one_out_df in id_leave_one_out_df_map.items():
+                replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
+                    biosound_group, id, timebin_dur_str, unit, train_dur_from_n_train_ids, replicate_num
+                )
+                replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+                logger.info(
+                    f"Saving replicate as: {replicate_csv_path}"
+                )
+                if not dry_run:
+                    leave_one_out_df.to_csv(replicate_csv_path, index=False)
 
 
-@dataclass
-class BiosoundGroupSplit:
-    subgroup: str
+def get_timit_train_data_dirs():
+    """Get list of directories with training data for TIMIT.
+
+    Each directory contains data from one speaker from one dialect region.
+    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE`.
+    The source data is from the full TIMIT corpus, minus the speakers that appear
+    in the NLTK sample, that is used for testing.
+    """
+    return sorted(
+        [id_dir
+         for id_dir in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
+         if id_dir.is_dir()]
+    )
+
+
+def get_timit_test_data_dirs():
+    """Get list of directories with test data for TIMIT.
+
+    Each directory contains data from one speaker from one dialect region.
+    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.SPEECH_DATA_DST`.
+    The source data is from the NLTK Sample of the TIMIT corpus.
+    """
+    return sorted(
+        [id_dir
+         for id_dir in constants.SPEECH_DATA_DST.iterdir()
+         if id_dir.is_dir()]
+    )
+
+
+def make_splits_timit(
+    total_train_dur: float,
+    val_dur: float,
+    train_subset_dur: float,
+    num_replicates: int = 3,
+    dry_run: bool = True,
+):
+    # test set stays the same for all training replicates, we get that first
+    logger.info(
+        f"Getting test data for TIMIT."
+    )
+    timit_test_dirs = get_timit_test_data_dirs()
+    test_wav_paths = []
+    for timit_test_dir in timit_test_dirs:
+        test_wav_paths.extend(voc.paths.from_dir(timit_test_dir, 'wav'))
+    split_wav_paths = {}
+    split_wav_paths['test'] = test_wav_paths
+
+    timit_train_dirs = get_timit_train_data_dirs()
+    wav_paths = []
+    csv_paths = []
+    for timit_train_dir in timit_train_dirs:
+        wav_paths.extend(voc.paths.from_dir(timit_train_dir, 'wav'))
+        csv_paths.extend(voc.paths.from_dir(timit_train_dir, '.phoneme.csv'))
+
+    durs = get_durs_from_wav_paths(wav_paths)
+    # next line, `labels_` to not clobber name of module
+    labels_ = get_labels_from_csv_paths(csv_paths)
+    labelset = set([lbl for labels_arr in labels_ for lbl in labels_arr])
+
+    total_dur = sum(durs)
+    logger.info(
+        f"Total duration of TIMIT training data: {total_dur}"
+    )
+
+    logger.info(
+        f"Getting indices for total training data pool with duration of {total_train_dur} s "
+        f"and validation split with duration of {val_dur} s"
+    )
+    train_inds, val_inds, _ = vak.prep.split.split.train_test_dur_split_inds(
+        durs,
+        labels_,
+        labelset,
+        train_dur=total_train_dur,
+        test_dur=None,
+        val_dur=val_dur,
+    )
+    split_wav_paths['train'] = [wav_paths[train_ind] for train_ind in train_inds]
+    split_wav_paths['val'] = [wav_paths[val_ind] for val_ind in val_inds]
+
+    logger.info(
+        f"Getting DataFrame with phoneme-level inputs and targets that have timebin duration of 10.0 ms"
+    )
+    splits_df = split_wav_paths_to_df(
+        split_wav_paths,
+        unit='phoneme',
+        timebin_dur_str="10.0",
+        target_columns=['multi_frame_labels_path', 'boundary_onehot_path'],
+    )
+    splits_df['group'] = 'Human-Speech'
+    splits_from_df = sorted(splits_df.split.unique())
+    logger.info(
+        f"Splits in DataFrame: {splits_from_df}"
+    )
+    for split in splits_from_df:
+        logger.info(
+            f"Split '{split}' has duration: {splits_df[splits_df.split == split].duration.sum()}"
+        )
+
+    split_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.splits.csv"
+    split_csv_path = constants.DATASET_ROOT / split_csv_filename
+    if not dry_run:
+        splits_df.to_csv(split_csv_path, index=False)
+
+    for replicate_num in range(1, num_replicates + 1):
+        logger.info(
+            f"Getting subset of training data for training replicate {replicate_num}."
+        )
+        replicate_df = get_df_with_train_subset(
+            splits_df, train_subset_dur, labelset, keep_val_and_test_split=True,
+        )
+        splits_from_df = sorted(replicate_df.split.unique())
+        logger.info(
+            f"Splits in DataFrame for training replicate: {splits_from_df}"
+        )
+        for split in splits_from_df:
+            logger.info(
+                f"Split '{split}' has duration: {replicate_df[replicate_df.split == split].duration.sum()}"
+            )
+
+        replicate_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+        logger.info(
+            f"Saving replicate as: {replicate_csv_path}"
+        )
+        if not dry_run:
+            replicate_df.to_csv(replicate_csv_path, index=False)
+
+        # use replicate DataFrame to create 1.0-ms phoneme DataFrame + a word-level dataframe
+        logger.info(
+            "Using data from replicate to get DataFrame with 1.0 ms timebins, "
+            "and DataFrame with word-level inputs and targets"
+        )
+        replicate_wav_paths_for_other_csvs = {}
+        for split in replicate_df.split.unique():
+            replicate_split_df = replicate_df[replicate_df.split == split].copy()
+            wav_paths = [
+                constants.DATASET_ROOT / wav_path
+                for wav_path in replicate_split_df.audio_path.values
+            ]
+            replicate_wav_paths_for_other_csvs[split] = wav_paths
+
+        replicate_1ms_df = split_wav_paths_to_df(
+            replicate_wav_paths_for_other_csvs,
+            unit='phoneme',
+            timebin_dur_str="1.0",
+            target_columns=['multi_frame_labels_path', 'boundary_onehot_path'],
+        )
+        splits_from_df = sorted(replicate_1ms_df.split.unique())
+        logger.info(
+            f"Splits in DataFrame for 1.0 ms timebin training replicate: {splits_from_df}"
+        )
+        for split in splits_from_df:
+            logger.info(
+                f"Split '{split}' has duration: {replicate_1ms_df[replicate_1ms_df.split == split].duration.sum()}"
+            )
+
+        replicate_1ms_csv_filename = f"Human-Speech.timebin-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_1ms_csv_path = constants.DATASET_ROOT / replicate_1ms_csv_filename
+        logger.info(
+            f"Saving replicate with 1.0 ms timebins as: {replicate_1ms_csv_path}"
+        )
+        if not dry_run:
+            replicate_1ms_df.to_csv(replicate_1ms_csv_path, index=False)
+
+        replicate_word_df = split_wav_paths_to_df(
+            replicate_wav_paths_for_other_csvs,
+            unit='word',
+            timebin_dur_str="10.0",
+            target_columns=['boundary_onehot_path'],
+        )
+        splits_from_df = sorted(replicate_word_df.split.unique())
+        logger.info(
+            f"Splits in DataFrame for word-level training replicate: {splits_from_df}"
+        )
+        for split in splits_from_df:
+            logger.info(
+                f"Split '{split}' has duration: {replicate_word_df[replicate_word_df.split == split].duration.sum()}"
+            )
+
+        replicate_word_csv_filename = f"Human-Speech.timebin-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_word_csv_path = constants.DATASET_ROOT / replicate_word_csv_filename
+        logger.info(
+            f"Saving replicate with word-level annotations as: {replicate_word_csv_path}"
+        )
+        if not dry_run:
+            replicate_word_df.to_csv(replicate_word_csv_path, index=False)
+
+
+@dataclasses.dataclass
+class MakeSplitsParams:
+    biosound_group: str
     unit: str
-    train_pool: int
-    train: int
-    val: int
-    test: int
+    timebin_dur_str: str | list[str]
+    total_train_dur: float
+    val_dur: float
+    test_dur: float
+    train_subset_dur_id_only: float
     num_replicates: int
+    make_leave_one_id_out_splits: bool = True
 
 
-BIOSOUND_GROUP_SPLITS = {
-    "Bengalese-Finch-Song": [
-        ("id", "syllable", {'train': 900, 'val': 80, 'test': 400}),
-    ]
-
+BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
+    "Bengalese-Finch-Song": MakeSplitsParams(
+        biosound_group='Bengalese-Finch-Song',
+        unit='syllable',
+        timebin_dur_str='1',
+        total_train_dur=900,
+        val_dur=80,
+        test_dur=400,
+        train_subset_dur_id_only=600,
+        num_replicates=3,
+    ),
+    "Canary-Song": MakeSplitsParams(
+        biosound_group='Canary-Song',
+        unit='syllable',
+        timebin_dur_str='2.7',
+        total_train_dur=10000,
+        val_dur=250,
+        test_dur=5000,
+        train_subset_dur_id_only=3600,
+        num_replicates=3,
+    ),
+    "Mouse-Pup-Call": MakeSplitsParams(
+        biosound_group='Mouse-Pup-Call',
+        unit='call',
+        timebin_dur_str='1.5',
+        total_train_dur=2100,
+        val_dur=50,
+        test_dur=750,
+        train_subset_dur_id_only=1500,
+        num_replicates=3,
+    ),
+    "Zebra-Finch-Song": MakeSplitsParams(
+        biosound_group='Zebra-Finch-Song',
+        unit='syllable',
+        timebin_dur_str='0.5',
+        total_train_dur=130,
+        val_dur=10,
+        test_dur=40,
+        train_subset_dur_id_only=100,
+        num_replicates=3,
+        make_leave_one_id_out_splits=False,
+    ),
+    "Human-Speech": MakeSplitsParams(
+        biosound_group='Human-Speech',
+        unit='phoneme',
+        timebin_dur_str='10.0',
+        total_train_dur=18000,
+        val_dur=500,
+        test_dur=500,
+        train_subset_dur_id_only=16000,
+        num_replicates=3,
+        make_leave_one_id_out_splits=False,
+    ),
 }
 
 
-def make_splits_all(biosound_groups: list[str], dry_run=True) -> None:
-    if "Bengalese-Finch-Song" in biosound_groups:
+def make_splits_all(
+    biosound_groups: list[str], dry_run=True
+) -> None:
+    for biosound_group in biosound_groups:
         logger.info(
-            f"Making inputs and targets for Bengalese finch song."
+            f"Making splits for biosound group: {biosound_group}"
         )
-        make_inputs_and_targets_bengalese_finch_song(dry_run)
+        params = BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP[biosound_group]
+        if biosound_group == 'Human-Speech':
+            make_splits_timit(
+                total_train_dur=params.total_train_dur,
+                val_dur=params.val_dur,
+                train_subset_dur=params.train_subset_dur_id_only,
+                num_replicates=params.num_replicates,
+                dry_run=dry_run,
+            )
+        else:
+            params = dataclasses.asdict(params)
+            params['dry_run'] = dry_run
+            make_splits_per_id(**params)
+    # if "Bengalese-Finch-Song" in biosound_groups:
+    #     logger.info(
+    #         f"Making inputs and targets for Bengalese finch song."
+    #     )
+    #     make_splits_per_id(
+    #         biosound_group='Bengalese-Finch-Song',
+    #         unit='syllable',
+    #         timebin_dur_str='1',
+    #         total_train_dur=900,
+    #         val_dur=80,
+    #         test_dur=400,
+    #         train_subset_dur_id_only=600,
+    #         num_replicates=3,
+    #         dry_run=dry_run,
+    #     )
 
-    if "Canary-Song" in biosound_groups:
-        logger.info(
-            f"Making inputs and targets for canary song."
-        )
-        make_inputs_and_targets_canary_song(dry_run)
+    # if "Canary-Song" in biosound_groups:
+    #     logger.info(
+    #         f"Making inputs and targets for canary song."
+    #     )
+    #     make_splits_per_id(
+    #         biosound_group='Canary-Song',
+    #         unit='syllable',
+    #         timebin_dur_str='2.7',
+    #         total_train_dur=10000,
+    #         val_dur=250,
+    #         test_dur=5000,
+    #         train_subset_dur_id_only=3600,
+    #         num_replicates=3,
+    #     )
 
-    if "Mouse-Pup-Call" in biosound_groups:
-        logger.info(
-            f"Making inputs and targets for mouse pup calls."
-        )
-        make_inputs_and_targets_mouse_pup_call(dry_run)
+    # if "Mouse-Pup-Call" in biosound_groups:
+    #     logger.info(
+    #         f"Making inputs and targets for mouse pup calls."
+    #     )
+    #     make_splits_per_id(
+    #         biosound_group='Mouse-Pup-Call',
+    #         unit='call',
+    #         timebin_dur_str='1.5',
+    #         total_train_dur=2100,
+    #         val_dur=50,
+    #         test_dur=750,
+    #         train_subset_dur_id_only=1500,
+    #         num_replicates=3,
+    #     )
 
-    if "Zebra-Finch-Song" in biosound_groups:
-        logger.info(
-            f"Making inputs and targets for Zebra finch song."
-        )
-        make_inputs_and_targets_zebra_finch_song(dry_run)
+    # if "Zebra-Finch-Song" in biosound_groups:
+    #     logger.info(
+    #         f"Making inputs and targets for Zebra finch song."
+    #     )
+    #     make_splits_per_id(
+    #         biosound_group='Zebra-Finch-Song',
+    #         unit='syllable',
+    #         timebin_dur_str='0.5',
+    #         total_train_dur=130,
+    #         val_dur=10,
+    #         test_dur=40,
+    #         train_subset_dur_id_only=100,
+    #         num_replicates=3,
+    #         make_leave_one_id_out_splits=False,
+    #     )
 
-    if "Human-Speech" in biosound_groups:
-        logger.info(
-            f"Making inputs and targets for human speech."
-        )
-        make_inputs_and_targets_human_speech(dry_run)
+    # if "Human-Speech" in biosound_groups:
+    #     logger.info(
+    #         f"Making inputs and targets for human speech."
+    #     )
+    #     make_splits_timit(
+    #         total_train_dur=600,
+    #         val_dur=100,
+    #         train_subset_dur=500,
+    #         timebin_dur_str_list=['10.0','1.0'],
+    #         num_replicates=3,
+    #         dry_run=True,
+    #     )
 
