@@ -8,7 +8,8 @@ PREP_STAGES = (
     "labels",
     "qc",
     "make",
-    "clean"
+    "split",
+    "clean",
 )
 
 
@@ -84,12 +85,6 @@ SPEECH_RAW_DATA = RAW_DATA_ROOT / "Human-Speech"
 # ------------ TIMIT NLTK sample
 TIMIT_NLTK_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-sample-from-NLTK" / "timit"
 
-# ---- all the data from datasets with unpermissive licenses goes here
-DATA_WE_CANT_SHARE = DATA_DIR / "DATA-WE-CANT-SHARE"
-
-# -------- human speech data we can't share
-HUMAN_SPEECH_WE_CANT_SHARE = DATA_WE_CANT_SHARE / "Human-Speech"
-
 # ------------ TIMIT full corpus
 TIMIT_FULL_CORPUS_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-full" / "data"
 
@@ -97,6 +92,9 @@ TIMIT_FULL_CORPUS_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-full" / "data"
 # ---- root for dataset we are making,
 # and species-specific sub-dirs
 DATASET_ROOT = DATA_DIR / "BioSoundSegBench"
+
+# ---- all the data from datasets with unpermissive licenses goes here
+DATA_WE_CANT_SHARE = DATASET_ROOT / "DATA-WE-CANT-SHARE"
 
 # -------- Bengalese finch song
 BF_DATA_DST = DATASET_ROOT / "Bengalese-Finch-Song"
@@ -110,7 +108,12 @@ MOUSE_PUP_CALL_DATA_DST = DATASET_ROOT / "Mouse-Pup-Call"
 # -------- Zebra finch song
 ZB_DATA_DST = DATASET_ROOT / "Zebra-Finch-Song"
 
+
 # -------- Human speech
+
+# -------- human speech data we can't share
+HUMAN_SPEECH_WE_CANT_SHARE = DATA_WE_CANT_SHARE / "Human-Speech"
+
 SPEECH_DATA_DST = DATASET_ROOT / "Human-Speech"
 
 # ----- metadata -----------------------------------------------------------------------------------
