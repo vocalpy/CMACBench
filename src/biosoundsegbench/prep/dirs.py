@@ -56,3 +56,9 @@ def mkdirs(dry_run=True):
     )
     if not dry_run:
         constants.HUMAN_SPEECH_WE_CANT_SHARE.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory SPLITS_DIR: {constants.SPLITS_DIR}"
+    )
+    if not dry_run:
+        constants.SPLITS_DIR.mkdir(exist_ok=True)
