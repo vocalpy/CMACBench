@@ -70,6 +70,13 @@ def prep_biosoundsegbench(
         # ---- make frames + frame classification, boundary detection vectors
         biosoundsegbench.prep.make_inputs_and_targets_all(biosound_groups, dry_run)
 
+    if stage =='split' or stage == 'all':
+        logger.info(
+            f"Stage was '{stage}', will make csv files representing dataset splits."
+        )
+        # ---- make frames + frame classification, boundary detection vectors
+        biosoundsegbench.prep.make_splits_all(biosound_groups, dry_run)
+
 
 parser = biosoundsegbench.prep.parser.get_parser()
 args = parser.parse_args()
