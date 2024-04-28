@@ -374,7 +374,7 @@ def get_splits_df_and_replicate_dfs_per_id(
         id_splits_df_map[id] = splits_df
 
         splits_csv_filename = get_splits_csv_filename_id(biosound_group, id, timebin_dur_str, unit)
-        splits_csv_path = constants.DATASET_ROOT / splits_csv_filename
+        splits_csv_path = constants.SPLITS_DIR / splits_csv_filename
         logger.info(
             f"Saving splits as: {splits_csv_path}"
         )
@@ -405,7 +405,7 @@ def get_splits_df_and_replicate_dfs_per_id(
             replicate_csv_filename = get_replicate_csv_filename_id_data_only(
                 biosound_group, id, timebin_dur_str, unit, train_subset_dur, replicate_num
             )
-            replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+            replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
             logger.info(
                 f"Saving replicate as: {replicate_csv_path}"
             )
@@ -603,7 +603,7 @@ def make_splits_per_id(
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
                     biosound_group, id, timebin_dur_str, unit, train_subset_dur_leave_one_id_out, replicate_num
                 )
-                replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+                replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
                 logger.info(
                     f"Saving replicate as: {replicate_csv_path}"
                 )
@@ -634,7 +634,7 @@ def make_splits_per_id(
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
                     biosound_group, id, timebin_dur_str, unit, train_dur_from_n_train_ids, replicate_num
                 )
-                replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+                replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
                 logger.info(
                     f"Saving replicate as: {replicate_csv_path}"
                 )
@@ -741,7 +741,7 @@ def make_splits_timit(
         )
 
     split_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.splits.csv"
-    split_csv_path = constants.DATASET_ROOT / split_csv_filename
+    split_csv_path = constants.SPLITS_DIR / split_csv_filename
     if not dry_run:
         splits_df.to_csv(split_csv_path, index=False)
 
@@ -762,7 +762,7 @@ def make_splits_timit(
             )
 
         replicate_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_csv_path = constants.DATASET_ROOT / replicate_csv_filename
+        replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
         logger.info(
             f"Saving replicate as: {replicate_csv_path}"
         )
@@ -799,7 +799,7 @@ def make_splits_timit(
             )
 
         replicate_1ms_csv_filename = f"Human-Speech.timebin-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_1ms_csv_path = constants.DATASET_ROOT / replicate_1ms_csv_filename
+        replicate_1ms_csv_path = constants.SPLITS_DIR / replicate_1ms_csv_filename
         logger.info(
             f"Saving replicate with 1.0 ms timebins as: {replicate_1ms_csv_path}"
         )
@@ -822,7 +822,7 @@ def make_splits_timit(
             )
 
         replicate_word_csv_filename = f"Human-Speech.timebin-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_word_csv_path = constants.DATASET_ROOT / replicate_word_csv_filename
+        replicate_word_csv_path = constants.SPLITS_DIR / replicate_word_csv_filename
         logger.info(
             f"Saving replicate with word-level annotations as: {replicate_word_csv_path}"
         )
@@ -919,78 +919,4 @@ def make_splits_all(
             params = dataclasses.asdict(params)
             params['dry_run'] = dry_run
             make_splits_per_id(**params)
-    # if "Bengalese-Finch-Song" in biosound_groups:
-    #     logger.info(
-    #         f"Making inputs and targets for Bengalese finch song."
-    #     )
-    #     make_splits_per_id(
-    #         biosound_group='Bengalese-Finch-Song',
-    #         unit='syllable',
-    #         timebin_dur_str='1',
-    #         total_train_dur=900,
-    #         val_dur=80,
-    #         test_dur=400,
-    #         train_subset_dur_id_only=600,
-    #         num_replicates=3,
-    #         dry_run=dry_run,
-    #     )
-
-    # if "Canary-Song" in biosound_groups:
-    #     logger.info(
-    #         f"Making inputs and targets for canary song."
-    #     )
-    #     make_splits_per_id(
-    #         biosound_group='Canary-Song',
-    #         unit='syllable',
-    #         timebin_dur_str='2.7',
-    #         total_train_dur=10000,
-    #         val_dur=250,
-    #         test_dur=5000,
-    #         train_subset_dur_id_only=3600,
-    #         num_replicates=3,
-    #     )
-
-    # if "Mouse-Pup-Call" in biosound_groups:
-    #     logger.info(
-    #         f"Making inputs and targets for mouse pup calls."
-    #     )
-    #     make_splits_per_id(
-    #         biosound_group='Mouse-Pup-Call',
-    #         unit='call',
-    #         timebin_dur_str='1.5',
-    #         total_train_dur=2100,
-    #         val_dur=50,
-    #         test_dur=750,
-    #         train_subset_dur_id_only=1500,
-    #         num_replicates=3,
-    #     )
-
-    # if "Zebra-Finch-Song" in biosound_groups:
-    #     logger.info(
-    #         f"Making inputs and targets for Zebra finch song."
-    #     )
-    #     make_splits_per_id(
-    #         biosound_group='Zebra-Finch-Song',
-    #         unit='syllable',
-    #         timebin_dur_str='0.5',
-    #         total_train_dur=130,
-    #         val_dur=10,
-    #         test_dur=40,
-    #         train_subset_dur_id_only=100,
-    #         num_replicates=3,
-    #         make_leave_one_id_out_splits=False,
-    #     )
-
-    # if "Human-Speech" in biosound_groups:
-    #     logger.info(
-    #         f"Making inputs and targets for human speech."
-    #     )
-    #     make_splits_timit(
-    #         total_train_dur=600,
-    #         val_dur=100,
-    #         train_subset_dur=500,
-    #         timebin_dur_str_list=['10.0','1.0'],
-    #         num_replicates=3,
-    #         dry_run=True,
-    #     )
-
+ 
