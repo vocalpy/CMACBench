@@ -590,21 +590,21 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
             unlabeled_label=labelmap["unlabeled"],
         )
         frame_labels_multi_filename = get_multi_frame_labels_filename(
-            audio_path, timebin_dur, unit
+            audio_path, spect_params.timebin_dur, unit
         )
         frame_labels_multi_path = dst / frame_labels_multi_filename
         np.save(frame_labels_multi_path, frame_labels_multi)
 
         frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
         frame_labels_binary_filename = get_binary_frame_labels_filename(
-            audio_path, timebin_dur, unit
+            audio_path, spect_params.timebin_dur, unit
         )
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, frame_labels_binary)
 
         boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
         boundary_onehot_filename = get_boundary_onehot_filename(
-            audio_path, timebin_dur, unit
+            audio_path, spect_params.timebin_dur, unit
         )
         boundary_onehot_path = dst / boundary_onehot_filename
         np.save(boundary_onehot_path, boundary_onehot)
