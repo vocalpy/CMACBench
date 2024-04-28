@@ -5,3 +5,4 @@ from .dirs import mkdirs
 from .labels import make_labelsets_and_labelmaps
 from .make_inputs_and_targets import make_inputs_and_targets_all
 from .qc import do_qc
+from .split import make_splits_all
