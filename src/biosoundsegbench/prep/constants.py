@@ -120,3 +120,4 @@ SPEECH_DATA_DST = DATASET_ROOT / "Human-Speech"
 
 LABELSETS_JSON = DATASET_ROOT / "labelsets.json"
 LABELMAPS_JSON = DATASET_ROOT / "labelmaps.json"
+SPLITS_DIR = DATASET_ROOT / "splits"
