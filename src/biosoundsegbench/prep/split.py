@@ -100,6 +100,15 @@ def split_wav_paths_to_df(
     target_columns=TARGET_COLUMNS,
     annot_format="simple-seq",
 ):
+    """Takes dictionary mapping split names to wav paths,
+    and builds a DataFrame with paths to the inputs and targets
+    for neural network models.
+
+    This function takes advantage of the fact that we use a naming scheme
+    based on the wav files, e.g. the inputs for a network have a name
+    like "file1.wav.frames.npz" and the multi-class frame label vectors
+    have names like "file1.wav.multi-frame-labels.npy".
+    """
     if not all(
         [target_column in TARGET_COLUMNS for target_column in target_columns]
     ):
@@ -919,4 +928,3 @@ def make_splits_all(
             params = dataclasses.asdict(params)
             params['dry_run'] = dry_run
             make_splits_per_id(**params)
- 
