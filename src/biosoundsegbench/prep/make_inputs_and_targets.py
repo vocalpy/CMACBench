@@ -128,7 +128,7 @@ class SpectParams:
     fft_size: int
     step_size: int
     transform_type: str
-    timebin_dur: int
+    timebin_dur: float
     freq_cutoffs: list[int] | None = None
     thresh: float | None = None
     spect_key: str = 's'
@@ -223,7 +223,7 @@ BF_SPECT_PARAMS = [
         step_size=64,
         freq_cutoffs=[500, 10000],
         transform_type='log_spect',
-        timebin_dur=2,
+        timebin_dur=2.0,
     ),
     # time bin size = 0.001 s
     SpectParams(
@@ -231,7 +231,7 @@ BF_SPECT_PARAMS = [
         step_size=32,
         freq_cutoffs=[500, 10000],
         transform_type='log_spect',
-        timebin_dur=1,
+        timebin_dur=1.0,
     ),
 ]
 
@@ -369,7 +369,7 @@ CANARY_SPECT_PARAMS = [
         fft_size=512,
         step_size=45,
         transform_type='log_spect',
-        timebin_dur=1,
+        timebin_dur=1.0,
     ),
 ]
 
