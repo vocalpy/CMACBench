@@ -62,3 +62,27 @@ def mkdirs(dry_run=True):
     )
     if not dry_run:
         constants.SPLITS_DIR.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory INPUTS_TARGETS_PATHS_CSVS_DIR: {constants.INPUTS_TARGETS_PATHS_CSVS_DIR}"
+    )
+    if not dry_run:
+        constants.INPUTS_TARGETS_PATHS_CSVS_DIR.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory SAMPLE_ID_VECTORS_DIR: {constants.SAMPLE_ID_VECTORS_DIR}"
+    )
+    if not dry_run:
+        constants.SAMPLE_ID_VECTORS_DIR.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory INDS_IN_SAMPLE_VECTORS_DIR: {constants.INDS_IN_SAMPLE_VECTORS_DIR}"
+    )
+    if not dry_run:
+        constants.INDS_IN_SAMPLE_VECTORS_DIR.mkdir(exist_ok=True)
+
+    logger.info(
+        f"Making directory SPLITS_JSONS_DIR: {constants.SPLITS_JSONS_DIR}"
+    )
+    if not dry_run:
+        constants.SPLITS_JSONS_DIR.mkdir(exist_ok=True)
