@@ -1,73 +1,154 @@
-from __future__ import annotation
+from __future__ import annotations
 
-from typing import Callable, Mapping
+from typing import Callable, Literal, Mapping
 
+import collections
+import dataclasses
 import json
 import pathlib
 
+import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
+import vak
 
-from .. import transforms
+from biosoundsegbench import transforms
 
-# TODO: this should use importlib-resources
-with pathlib.Path('./biosoundsegbench.json').open('r') as fp:
-    BIOSOUNDSEGBENCH_META = json.load(fp)
+
+VALID_TARGET_TYPES = (
+    'boundary_onehot',
+    'multi_frame_labels',
+    'binary_frame_labels',
+    ('boundary_onehot', 'binary_frame_labels'),
+    ('binary_frame_labels', 'boundary_onehot'),
+    ('boundary_onehot', 'multi_frame_labels'),
+    ('multi_frame_labels', 'boundary_onehot'),
+    'None',
+)
 
 
 FRAMES_PATH_COL_NAME = "frames_path"
-FRAME_LABELS_EXT = ".frame_labels.npy"
-FRAME_LABELS_NPY_PATH_COL_NAME = "frame_labels_npy_path"
-SAMPLE_IDS_ARRAY_FILENAME = "sample_ids.npy"
-INDS_IN_SAMPLE_ARRAY_FILENAME = "inds_in_sample.npy"
-WINDOW_INDS_ARRAY_FILENAME = "window_inds.npy"
-FRAME_CLASSIFICATION_DATASET_AUDIO_FORMAT = "wav"
+MULTI_FRAME_LABELS_PATH_COL_NAME = "multi_frame_labels_path"
+BINARY_FRAME_LABELS_PATH_COL_NAME = "binary_frame_labels_path"
+BOUNDARY_ONEHOT_PATH_COL_NAME = "boundary_onehot_path"
 
 
-# TODO: we need to use the metadata to validate
-# I think it makes the most sense to organize by target type first?
-# VALID_TARGET_TYPES = ('label-multi', 'boundary', 'label-binary')
-# VALID_SPECIES = ('bengalese finch', 'canary')
-# VALD_UNIT = ('syllable')
+@dataclasses.dataclass
+class SampleIDVectorPaths:
+    train: pathlib.Path
+    val: pathlib.Path
+    test: pathlib.Path
 
-# paths here are relative to ``root`` of BioSoundSegBench
-INIT_ARGS_CSV_MAP = {
-    'bengalese finch': {
-        'syllable': {
-            'gy6or6': ''
+
+@dataclasses.dataclass
+class IndsInSampleVectorPaths:
+    train: pathlib.Path
+    val: pathlib.Path
+    test: pathlib.Path
+
+
+@dataclasses.dataclass
+class SplitsMetadata:
+    """Dataclass that represents metadata about dataset splits,
+    loaded from a json file"""
+    splits_csv_path: pathlib.Path
+    sample_id_vector_paths: SampleIDVectorPaths
+    inds_in_sample_vector_paths: IndsInSampleVectorPaths
+
+    @classmethod
+    def from_paths(cls, json_path, dataset_path):
+        json_path = pathlib.Path(json_path)
+        with json_path.open('r') as fp:
+            splits_json = json.load(fp)
+
+        dataset_path = pathlib.Path(dataset_path)
+        if not dataset_path.exists() or not dataset_path.is_dir():
+            raise NotADirectoryError(
+                f"`dataset_path` not found or not a directory: {dataset_path}"
+            )
+
+        splits_csv_path = pathlib.Path(
+            dataset_path / splits_json['splits_csv_path']
+        )
+        if not splits_csv_path.exists():
+            raise FileNotFoundError(
+                f"`splits_csv_path` not found: {splits_csv_path}"
+            )
+
+        sample_id_vector_paths = {
+            split: dataset_path / path
+            for split, path in splits_json['sample_id_vec_path'].items()
         }
-    }
+        for split, vec_path in sample_id_vector_paths.items():
+            if not vec_path.exists():
+                raise FileNotFoundError(
+                    f"`sample_id_vector_path` for split '{split}' not found: {vec_path}"
+                )
+        sample_id_vector_paths = SampleIDVectorPaths(
+            **sample_id_vector_paths
+        )
 
-}
+        inds_in_sample_vector_paths = {
+            split: dataset_path / path
+            for split, path in splits_json['inds_in_sample_vec_path'].items()
+        }
+        for split, vec_path in inds_in_sample_vector_paths.items():
+            if not vec_path.exists():
+                raise FileNotFoundError(
+                    f"`inds_in_sample_vec_path` for split '{split}' not found: {vec_path}"
+                )
+        inds_in_sample_vector_paths = IndsInSampleVectorPaths(
+            **inds_in_sample_vector_paths
+        )
 
-VALID_TARGET_TYPES = (
-    'boundary',
-    'label-multi',
-    'label-binary',
-    ('boundary', 'label-binary'),
-    ('boundary', 'label-multi'),
-)
+        return cls(
+            splits_csv_path,
+            sample_id_vector_paths,
+            inds_in_sample_vector_paths
+        )
 
 
 class BioSoundSegBench:
     def __init__(
-            self,
-            root: str | pathlib.Path,
-            species: str | list[str] | tuple[str],
-            target_type: str | list[str] | tuple[str],
-            unit: str,
-            id: str | None,
-            split: str,
-            window_size: int,
-            item_transform: Callable,
-            stride: int = 1,
-            ):
+        self,
+        root: str | pathlib.Path,
+        splits_path: str | pathlib.Path,
+        split: Literal["train", "val", "test"],
+        item_transform: Callable,
+        target_type: str | list[str] | tuple[str] | None = None,
+        window_size: int | None = None,
+        stride: int = 1,
+    ):
         """BioSoundSegBench dataset."""
+        if split == 'train' and window_size is None:
+            raise ValueError(
+                "Must specify `window_size` if split is 'train'`, but "
+                "`window_size` is None."
+            )
+        if split == 'train' and target_type is None:
+            raise ValueError(
+                "Must specify `target_type` if split is 'train'`, but "
+                "`target_type` is None."
+            )
+
         root = pathlib.Path(root)
         if not root.exists() or not root.is_dir():
-            raise NotADirectoryError()
+            raise NotADirectoryError(
+                f"`root` for dataset not found, or not a directory: {root}"
+            )
+        self.root = root
 
+        splits_path = pathlib.Path(splits_path)
+        if not splits_path.exists():
+            raise NotADirectoryError(
+                f"`splits_path` not found: {splits_path}"
+            )
+        self.splits_metadata = SplitsMetadata.from_paths(
+            json_path=splits_path, dataset_path=root
+        )
+
+        if target_type is None:
+            target_type = 'None'
         if target_type not in VALID_TARGET_TYPES:
             raise ValueError(
                 f"Invalid `target_type`: {target_type}. "
@@ -78,85 +159,133 @@ class BioSoundSegBench:
             target_type = (target_type,)
         self.target_type = target_type
 
-        self.dataset_df = self._get_dataset_df(
-            root,
-            species,
-            unit,
-            id,
-        )
-
         self.split = split
-        dataset_df = dataset_df[dataset_df.split == split].copy()
-        self.dataset_df = dataset_df
+        split_df = pd.read_csv(self.splits_metadata.splits_csv_path)
+        split_df = split_df[split_df.split == split].copy()
+        self.split_df = split_df
 
-        self.frames_paths = self.dataset_df[
+        self.frames_paths = self.split_df[
             FRAMES_PATH_COL_NAME
         ].values
-        if 'label-multi' in self.target_type:
-            self.multiclass_frame_labels_paths = self.dataset_df[
-                FRAME_LABELS_NPY_PATH_COL_NAME
+        self.target_paths = {}
+        if 'multi_frame_labels' in self.target_type:
+            self.target_paths['multi_frame_labels'] = self.split_df[
+                MULTI_FRAME_LABELS_PATH_COL_NAME
+            ].values
+        if 'binary_frame_labels' in self.target_type:
+            self.target_paths['binary_frame_labels'] = self.split_df[
+                BINARY_FRAME_LABELS_PATH_COL_NAME
+            ].values
+        if 'boundary_onehot' in self.target_type:
+            self.target_paths['boundary_onehot'] = self.split_df[
+                BOUNDARY_ONEHOT_PATH_COL_NAME
             ].values
         else:
-            self
+            self.boundary_onehot_paths = None
 
-        sample_ids, inds_in_sample = self._get_frames_vectors()
-        self.sample_ids = sample_ids
-        self.inds_in_sample = inds_in_sample
+        self.sample_ids = np.load(
+            getattr(self.splits_metadata.sample_id_vector_paths, split)
+        )
+        self.inds_in_sample = np.load(
+            getattr(self.splits_metadata.inds_in_sample_vector_paths, split)
+        )
         self.window_size = window_size
-        self.frame_dur = float(frame_dur)
         self.stride = stride
-        if window_inds is None:
+        if split == 'train':
             window_inds = vak.datasets.frame_classification.window_dataset.get_window_inds(
-                sample_ids.shape[-1], window_size, stride
+                self.sample_ids.shape[-1], window_size, stride
             )
+        else:
+            window_inds = None
         self.window_inds = window_inds
         self.item_transform = item_transform
 
+    @property
+    def input_shape(self):
         tmp_x_ind = 0
         tmp_item = self.__getitem__(tmp_x_ind)
-        # used by vak functions that need to determine size of input,
-        # e.g. when initializing a neural network model
-        self.num_channels = tmp_item["frames"].shape[0]
-        self.num_freqbins = tmp_item["frames"].shape[1]
+        input_shape = tmp_item["frames"].shape
+        if split == 'train' and len(input_shape) == 3:
+            return input_shape
+        elif split in ('val', 'test', 'predict') and len(input_shape) == 4:
+            # discard windows dimension from shape --
+            # it's sample dependent and not what we want
+            return input_shape[1:]
 
-    def _get_dataset_df(
-            root,
-            species,
-            unit,
-            id,
-    ):
-        species_dict = INIT_ARGS_CSV_MAP[species]
-        if id is None:
-            # we ignore individual ID and concatenate all CSVs
-            # TODO: we will need to deal with labelmap in this case
-            ids_dict = species_dict[unit]
-            csv_paths = [
-                csv_path for id, csv_path in ids_dict.items()
-            ]
+    def _getitem_train(self, idx):
+        window_idx = self.window_inds[idx]
+        sample_ids = self.sample_ids[
+            window_idx : window_idx + self.window_size  # noqa: E203
+        ]
+        uniq_sample_ids = np.unique(sample_ids)
+        item = {}
+        if len(uniq_sample_ids) == 1:
+            # repeat myself to avoid running a loop on one item
+            sample_id = uniq_sample_ids[0]
+            frames_path = self.root / self.frames_paths[sample_id]
+            spect_dict = vak.common.files.spect.load(frames_path)
+            item['frames'] = spect_dict[vak.common.constants.SPECT_KEY]
+            for target_type in self.target_type:
+                item[target_type] = np.load(
+                    self.root / self.target_paths[target_type][sample_id]
+                )
+
+        elif len(uniq_sample_ids) > 1:
+            for target_type in self.target_type:
+                # do this to append instead of using defaultdict
+                # so that when we do `'target_type' in item` we don't get empty list
+                item[target_type] = []
+            for sample_id in sorted(uniq_sample_ids):
+                frames_path = self.root / self.frames_paths[sample_id]
+                spect_dict = vak.common.files.spect.load(frames_path)
+                item['frames'].append(
+                    spect_dict[vak.common.constants.SPECT_KEY]
+                )
+                for target_type in self.target_type:
+                    item[target_type].append(
+                        np.load(
+                            self.root / self.target_paths[target_type][sample_id]
+                        )
+                    )
+
+            item['frames'] = np.concatenate(item['frames'], axis=1)
+            for target_type in self.target_type:
+                item[target_type] = np.concatenate(item[target_type])
         else:
-            csv_paths = [species_dict[unit][id]]
-        dataset_df = []
-        for csv_path in csv_paths:
-            dataset_df.append(pd.read_csv(csv_path))
-        dataset_df = pd.concat(dataset_df)
-        return dataset_df
+            raise ValueError(
+                f"Unexpected number of ``uniq_sample_ids``: {uniq_sample_ids}"
+            )
 
-    def _get_frames_vectors(self):
-        # we're going to have different sample_ids + inds_in_sample_path
-        # for some of the same files,
-        # two cases:
-        # (1) where we train a model on multiple individuals;
-        # (2) where we train a model on multiple species (for which we also train separate models, ignoring cases like USVSEG)
-        # I don't know right now how we will make / save those?
-        # I guess in a separate step where we build each dataset
-        split_path = dataset_path / split
-        sample_ids_path = split_path / SAMPLE_IDS_ARRAY_FILENAME
-        sample_ids = np.load(sample_ids_path)
-        inds_in_sample_path = (
-            split_path / INDS_IN_SAMPLE_ARRAY_FILENAME
-        )
-        inds_in_sample = np.load(inds_in_sample_path)
+        ind_in_sample = self.inds_in_sample[window_idx]
+        item['frames'] = item['frames'][
+            ...,
+            ind_in_sample : ind_in_sample + self.window_size,  # noqa: E203
+        ]
+        for target_type in self.target_type:
+            item[target_type] = item[target_type][
+                ind_in_sample : ind_in_sample + self.window_size  # noqa: E203
+            ]
+        item = self.item_transform(item)
+        return item
 
+    def _getitem_val(self, idx):
+        item = {}
+        frames_path = self.root / self.frames_paths[idx]
+        spect_dict = vak.common.files.spect.load(frames_path)
+        item['frames'] = spect_dict[vak.common.constants.SPECT_KEY]
+        for target_type in self.target_type:
+            item[target_type] = np.load(
+                self.root / self.target_paths[target_type][idx]
+            )
+        item = self.item_transform(item)
+        return item
+
+    def __getitem__(self, idx):
+        if self.split == 'train':
+            item = self._getitem_train(idx)
+        else:
+            item = self._getitem_val(idx)
+        return item
 
 
 def get_biosoundsegbench(
