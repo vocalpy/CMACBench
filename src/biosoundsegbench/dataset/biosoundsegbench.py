@@ -231,6 +231,7 @@ class BioSoundSegBench:
                 )
 
         elif len(uniq_sample_ids) > 1:
+            item['frames'] = []
             for target_type in self.target_type:
                 # do this to append instead of using defaultdict
                 # so that when we do `'target_type' in item` we don't get empty list
@@ -288,127 +289,58 @@ class BioSoundSegBench:
         return item
 
 
-def get_biosoundsegbench(
-    root: str | pathlib.Path,
-    species: str | list[str] | tuple[str],
-    target_type: str | list[str] | tuple[str],
-    unit: str,
-    id: str | None,
-    split: str,
-    window_size: int,
-    stride: int = 1,
-    labelmap: Mapping | None = None
-):
-    """Get a :class:`DataPipe` instance
-    for loading samples from the BioSoundSegBench.
+# def get_biosoundsegbench(
+#     root: str | pathlib.Path,
+#     species: str | list[str] | tuple[str],
+#     target_type: str | list[str] | tuple[str],
+#     unit: str,
+#     id: str | None,
+#     split: str,
+#     window_size: int,
+#     stride: int = 1,
+#     labelmap: Mapping | None = None
+# ):
+#     """Get a :class:`DataPipe` instance
+#     for loading samples from the BioSoundSegBench.
 
-    This function determines the correct data to use,
-    according to the `species`, `unit`, and `id`
-    specified.
+#     This function determines the correct data to use,
+#     according to the `species`, `unit`, and `id`
+#     specified.
 
-    It also determines which `transform` to use,
-    according to the `target_type`.
-    """
-    root = pathlib.Path(root)
-    if not root.exists() or not root.is_dir():
-        raise NotADirectoryError()
+#     It also determines which `transform` to use,
+#     according to the `target_type`.
+#     """
+#     root = pathlib.Path(root)
+#     if not root.exists() or not root.is_dir():
+#         raise NotADirectoryError()
 
-    species_dict = INIT_ARGS_CSV_MAP[species]
-    if id is None:
-        # we ignore individual ID and concatenate all CSVs
-        ids_dict = species_dict[unit]
-        csv_paths = [
-            csv_path for id, csv_path in ids_dict.items()
-        ]
-    else:
-        csv_paths = [species_dict[unit][id]]
-    dataset_df = []
-    for csv_path in csv_paths:
-        dataset_df.append(pd.read_csv(csv_path))
-    dataset_df = pd.concat(dataset_df)
+#     species_dict = INIT_ARGS_CSV_MAP[species]
+#     if id is None:
+#         # we ignore individual ID and concatenate all CSVs
+#         ids_dict = species_dict[unit]
+#         csv_paths = [
+#             csv_path for id, csv_path in ids_dict.items()
+#         ]
+#     else:
+#         csv_paths = [species_dict[unit][id]]
+#     dataset_df = []
+#     for csv_path in csv_paths:
+#         dataset_df.append(pd.read_csv(csv_path))
+#     dataset_df = pd.concat(dataset_df)
 
-    # TODO: I think this is a case where we need an "item transform" for train,
-    # to encapsulate the logic of dealing with different target types
-    if split == 'train':
-        # for boundary detection and binary classification, we use target transforms
-        # instead of loading from separate vectors for now
-        # TODO: fix this to load from separate data we prep -- be more frugal at runtime
-        if target_type == 'boundary':
-            target_transform = transforms.FrameLabelsToBoundaryOnehot()
-        elif target_type == 'label-binary':
-            target_transform = transforms.
-        elif target_type == 'label-multi':
-            # all we have to do is load the frame labels vector
-            target_transform = None
-
-
-    elif split in ('val', 'test', 'predict'):
+#     # TODO: I think this is a case where we need an "item transform" for train,
+#     # to encapsulate the logic of dealing with different target types
+#     if split == 'train':
+#         # for boundary detection and binary classification, we use target transforms
+#         # instead of loading from separate vectors for now
+#         # TODO: fix this to load from separate data we prep -- be more frugal at runtime
+#         if target_type == 'boundary':
+#             target_transform = transforms.FrameLabelsToBoundaryOnehot()
+#         elif target_type == 'label-binary':
+#             target_transform = transforms.
+#         elif target_type == 'label-multi':
+#             # all we have to do is load the frame labels vector
+#             target_transform = None
 
 
-class BioSoundSegBench:
-    def __init__(
-            self,
-            root: str | pathlib.Path,
-            species: str | list[str] | tuple[str],
-            target_type: str | list[str] | tuple[str],
-            unit: str,
-            id: str | None,
-            split: str,
-            window_size: int,
-    ):
-        # dataset_csv_path = BIOSOUNDSEGBENCH_META[target_type][species][unit]
-        self.root = pathlib.Path(root)
-
-    def __getitem__(self, idx):
-        if self.split == 'train':
-            window_idx = self.window_inds[idx]
-            sample_ids = self.sample_ids[
-                window_idx : window_idx + self.window_size  # noqa: E203
-            ]
-            uniq_sample_ids = np.unique(sample_ids)
-            if len(uniq_sample_ids) == 1:
-                # we repeat ourselves here to avoid running a loop on one item
-                sample_id = uniq_sample_ids[0]
-                frames_path = self.dataset_path / self.frames_paths[sample_id]
-                frames = self._load_frames(frames_path)
-                if 'label-multi' in self.target_types:
-                    frame_labels_multi = np.load(
-                        self.dataset_path / self.frame_labels_paths[sample_id]
-                    )
-
-            elif len(uniq_sample_ids) > 1:
-                frames = []
-                frame_labels = []
-                for sample_id in sorted(uniq_sample_ids):
-                    frames_path = self.dataset_path / self.frames_paths[sample_id]
-                    frames.append(self._load_frames(frames_path))
-                    frame_labels.append(
-                        np.load(
-                            self.dataset_path / self.frame_labels_paths[sample_id]
-                        )
-                    )
-
-                if all([frames_.ndim == 1 for frames_ in frames]):
-                    # --> all 1-d audio vectors; if we specify `axis=1` here we'd get error
-                    frames = np.concatenate(frames)
-                else:
-                    frames = np.concatenate(frames, axis=1)
-                frame_labels = np.concatenate(frame_labels)
-            else:
-                raise ValueError(
-                    f"Unexpected number of ``uniq_sample_ids``: {uniq_sample_ids}"
-                )
-
-            inds_in_sample = self.inds_in_sample[window_idx]
-            frames = frames[
-                ...,
-                inds_in_sample : inds_in_sample + self.window_size,  # noqa: E203
-            ]
-            frame_labels = frame_labels[
-                inds_in_sample : inds_in_sample + self.window_size  # noqa: E203
-            ]
-            if self.transform:
-                frames = self.transform(frames)
-            if self.target_transform:
-                frame_labels = self.target_transform(frame_labels)
-
+#     elif split in ('val', 'test', 'predict'):
