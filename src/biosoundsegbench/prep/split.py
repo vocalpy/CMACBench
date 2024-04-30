@@ -1,14 +1,16 @@
 """Functions to make dataset splits--training, validation, and test--and save as csv files in dataset root."""
+import copy
+import dataclasses
+import json
 import logging
 import pathlib
-from collections import defaultdict
-import dataclasses
+import collections
 
 import crowsetta
 import numpy as np
 import pandas as pd
 import pandera.errors
-from tqdm.notebook import tqdm
+import tqdm
 import vak
 import vocalpy as voc
 
@@ -327,7 +329,8 @@ def get_splits_df_and_replicate_dfs_per_id(
     labelsets = labels.get_labelsets()[biosound_group][unit]
 
     id_splits_df_map = {}
-    id_replicate_dfs_map = defaultdict(list)
+    id_replicate_dfs_map = collections.defaultdict(list)
+    replicate_csv_paths = []
     for id_dir in id_dirs:
         id = id_dir.name.split('-')[-1]
         logger.info(
@@ -383,7 +386,7 @@ def get_splits_df_and_replicate_dfs_per_id(
         id_splits_df_map[id] = splits_df
 
         splits_csv_filename = get_splits_csv_filename_id(biosound_group, id, timebin_dur_str, unit)
-        splits_csv_path = constants.SPLITS_DIR / splits_csv_filename
+        splits_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / splits_csv_filename
         logger.info(
             f"Saving splits as: {splits_csv_path}"
         )
@@ -414,14 +417,15 @@ def get_splits_df_and_replicate_dfs_per_id(
             replicate_csv_filename = get_replicate_csv_filename_id_data_only(
                 biosound_group, id, timebin_dur_str, unit, train_subset_dur, replicate_num
             )
-            replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
+            replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
             logger.info(
                 f"Saving replicate as: {replicate_csv_path}"
             )
             if not dry_run:
                 replicate_df.to_csv(replicate_csv_path, index=False)
+            replicate_csv_paths.append(replicate_csv_path)
 
-    return id_splits_df_map, id_replicate_dfs_map
+    return id_splits_df_map, id_replicate_dfs_map, replicate_csv_paths
 
 
 def make_leave_one_out_df_per_id(
@@ -491,7 +495,7 @@ def make_leave_one_out_df_per_id(
                 for train_id in train_ids:
                     labelset.extend(labelsets[train_id])
                 labelset = set(labelset)
-            for iter_n in tqdm(range(n_iter)):
+            for iter_n in tqdm.tqdm(range(n_iter)):
                 tmp_df = get_df_with_train_subset(
                     leave_one_out_df, train_subset_dur, labelset, keep_val_and_test_split=True
                 )
@@ -568,7 +572,8 @@ def make_splits_per_id(
         f"and a test set with duration of {test_dur}. For each ID will there will be {num_replicates} training replicates, "
         f"that subsets the training data split to a duration of {train_subset_dur_id_only} s."
     )
-    id_splits_df_map, id_replicate_dfs_map = get_splits_df_and_replicate_dfs_per_id(
+
+    id_splits_df_map, id_replicate_dfs_map, replicate_csv_paths = get_splits_df_and_replicate_dfs_per_id(
         biosound_group,
         unit,
         timebin_dur_str,
@@ -612,12 +617,13 @@ def make_splits_per_id(
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
                     biosound_group, id, timebin_dur_str, unit, train_subset_dur_leave_one_id_out, replicate_num
                 )
-                replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
+                replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
                 logger.info(
                     f"Saving replicate as: {replicate_csv_path}"
                 )
                 if not dry_run:
                     leave_one_out_df.to_csv(replicate_csv_path, index=False)
+                replicate_csv_paths.append(replicate_csv_path)
 
         # now make the leave-one-out CSVs where we use *all* the training data for each ID
         logger.info(
@@ -643,12 +649,14 @@ def make_splits_per_id(
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
                     biosound_group, id, timebin_dur_str, unit, train_dur_from_n_train_ids, replicate_num
                 )
-                replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
+                replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
                 logger.info(
                     f"Saving replicate as: {replicate_csv_path}"
                 )
                 if not dry_run:
                     leave_one_out_df.to_csv(replicate_csv_path, index=False)
+                replicate_csv_paths.append(replicate_csv_path)
+    return replicate_csv_paths
 
 
 def get_timit_train_data_dirs():
@@ -750,10 +758,11 @@ def make_splits_timit(
         )
 
     split_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.splits.csv"
-    split_csv_path = constants.SPLITS_DIR / split_csv_filename
+    split_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / split_csv_filename
     if not dry_run:
         splits_df.to_csv(split_csv_path, index=False)
 
+    replicate_csv_paths = []
     for replicate_num in range(1, num_replicates + 1):
         logger.info(
             f"Getting subset of training data for training replicate {replicate_num}."
@@ -771,12 +780,13 @@ def make_splits_timit(
             )
 
         replicate_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_csv_path = constants.SPLITS_DIR / replicate_csv_filename
+        replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
         logger.info(
             f"Saving replicate as: {replicate_csv_path}"
         )
         if not dry_run:
             replicate_df.to_csv(replicate_csv_path, index=False)
+        replicate_csv_paths.append(replicate_csv_path)
 
         # use replicate DataFrame to create 1.0-ms phoneme DataFrame + a word-level dataframe
         logger.info(
@@ -808,12 +818,13 @@ def make_splits_timit(
             )
 
         replicate_1ms_csv_filename = f"Human-Speech.timebin-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_1ms_csv_path = constants.SPLITS_DIR / replicate_1ms_csv_filename
+        replicate_1ms_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_1ms_csv_filename
         logger.info(
             f"Saving replicate with 1.0 ms timebins as: {replicate_1ms_csv_path}"
         )
         if not dry_run:
             replicate_1ms_df.to_csv(replicate_1ms_csv_path, index=False)
+        replicate_csv_paths.append(replicate_1ms_csv_path)
 
         replicate_word_df = split_wav_paths_to_df(
             replicate_wav_paths_for_other_csvs,
@@ -831,12 +842,253 @@ def make_splits_timit(
             )
 
         replicate_word_csv_filename = f"Human-Speech.timebin-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
-        replicate_word_csv_path = constants.SPLITS_DIR / replicate_word_csv_filename
+        replicate_word_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_word_csv_filename
         logger.info(
             f"Saving replicate with word-level annotations as: {replicate_word_csv_path}"
         )
         if not dry_run:
             replicate_word_df.to_csv(replicate_word_csv_path, index=False)
+        replicate_csv_paths.append(replicate_word_csv_path)
+    return replicate_csv_paths
+
+
+def argsort_by_label_freq(
+        labels_lists: list[list[str]]
+        ) -> list[int]:
+    """Returns indices to sort a list of annotations
+     in order of more frequently appearing labels,
+     i.e., the first annotation will have the label
+     that appears least frequently and the last annotation
+     will have the label that appears most frequently.
+
+    Used to sort a dataframe representing a dataset of annotated audio
+    or spectrograms before cropping that dataset to a specified duration,
+    so that it's less likely that cropping will remove all occurrences
+    of any label class from the total dataset.
+
+     Parameters
+     ----------
+     annots: list
+         List of list of strings, labels from :class:`crowsetta.Annotation` instances.
+
+     Returns
+     -------
+     sort_inds: list
+         Integer values to sort ``annots``.
+    """
+    all_labels = [lbl for labels_list in labels_lists for lbl in labels_list]
+    label_counts = collections.Counter(all_labels)
+
+    sort_inds = []
+    # make indices ahead of time so they stay constant as we remove things from the list
+    ind_labels_tuples = list(enumerate(copy.deepcopy(labels_lists)))
+    # starting with least common label, iterate through all labels list,
+    # and if a labels list contains that label, add the corresponding ind to sort inds
+    for label, _ in reversed(label_counts.most_common()):
+        # next line, [:] to make a temporary copy
+        # so the list we're iterating through doesn't shorten out from underneath us
+        for ind_labels_tuple in ind_labels_tuples[:]:
+            ind, labels_list = ind_labels_tuple
+            if label in labels_list:
+                sort_inds.append(ind)
+                ind_labels_tuples.remove(ind_labels_tuple)
+
+    # make sure we got all source_paths + annots
+    if len(ind_labels_tuples) > 0:
+        # next line, [:] to make a temporary copy
+        # so the list we're iterating through doesn't shorten out from underneath us
+        for ind_labels_tuple in ind_labels_tuples[:]:
+            ind, _ = ind_labels_tuple
+            sort_inds.append(ind)
+            ind_labels_tuples.remove(ind_labels_tuple)
+
+    if len(ind_labels_tuples) > 0:
+        raise ValueError(
+            "Not all ``labels_lists`` were used in sorting."
+            f"Left over (with indices from list): {ind_labels_tuples}"
+        )
+
+    if not (sorted(sort_inds) == list(range(len(labels_lists)))):
+        raise ValueError(
+            "sorted(sort_inds) does not equal range(len(labels)):"
+            f"sort_inds: {sort_inds}\nrange(len(annots)): {list(range(len(labels_lists)))}"
+        )
+
+    return sort_inds
+
+
+def sample_vecs_and_splits_df_from_splits_csv_path(
+        splits_csv_path
+        ):
+    logger.info(
+        f"Loading DataFrame from splits_csv_path: {splits_csv_path}"
+    )
+    splits_df = pd.read_csv(splits_csv_path)
+
+    split_sample_id_vec_map = {}
+    split_inds_in_sample_vec_map = {}
+    splits_df_out = []
+    for split in sorted(splits_df.split.unique()):
+        logger.info(
+            f"Processing split: {split}"
+        )
+        split_df = splits_df[splits_df.split == split].copy()
+        csv_paths = [
+            constants.DATASET_ROOT / csv_path
+            for csv_path in split_df.annot_path.values
+        ]
+        labels_lists = get_labels_from_csv_paths(csv_paths)
+        labels_lists = [
+            labels_arr.tolist() for labels_arr in labels_lists
+        ]
+
+        sort_inds = argsort_by_label_freq(labels_lists)
+        split_df["sort_inds"] = sort_inds
+        split_df = split_df.sort_values(by="sort_inds").drop(
+            columns="sort_inds"
+        )
+        splits_df_out.append(split_df)
+
+        sample_id_vec = []
+        inds_in_sample_vec = []
+        pbar = tqdm.tqdm(split_df.frames_path.values)
+        for source_id, frames_path in enumerate(pbar):
+            pbar.set_description(
+                f"Making sample/inds vec for: {pathlib.Path(frames_path).name}"
+            )
+            frames_path = constants.DATASET_ROOT / frames_path
+            frames_dict = np.load(frames_path)
+            frames = frames_dict['s']
+            n_frames = frames.shape[-1]
+            sample_id_vec.append(
+                np.ones((n_frames,)).astype(np.int32) * source_id
+            )
+            inds_in_sample_vec.append(
+                np.arange(n_frames)
+            )
+        sample_id_vec = np.concatenate(sample_id_vec)
+        split_sample_id_vec_map[split] = sample_id_vec
+
+        inds_in_sample_vec = np.concatenate(inds_in_sample_vec)
+        split_inds_in_sample_vec_map[split] = inds_in_sample_vec
+
+    splits_df_out = pd.concat(splits_df_out).reset_index(drop=True)
+    return split_sample_id_vec_map, split_inds_in_sample_vec_map, splits_df_out
+
+
+def get_sample_id_vector_filename_from_splits_csv_path(splits_csv_path, split):
+    return splits_csv_path.stem + f'.{split}.' + vak.datasets.frame_classification.constants.SAMPLE_IDS_ARRAY_FILENAME
+
+
+def get_inds_in_sample_vector_filename_from_splits_csv_path(splits_csv_path, split):
+    return splits_csv_path.stem + f'.{split}.' + vak.datasets.frame_classification.constants.INDS_IN_SAMPLE_ARRAY_FILENAME
+
+
+def save_vecs_and_make_json_from_csv_paths(
+    splits_csv_paths: list[pathlib.Path],
+    dry_run=True
+):
+    splits_path_json_paths = {}
+    for splits_csv_path in splits_csv_paths:
+        logger.info(
+            f"Making sample ID vector and inds in sample vector for splits in csv path:\n{splits_csv_path}"
+        )
+        splits_path_json_dict = {
+            'splits_csv_path': str(
+                splits_csv_path.relative_to(constants.DATASET_ROOT)
+            )
+        }
+
+        (split_sample_id_vec_map,
+         split_inds_in_sample_vec_map,
+         splits_df_out
+        ) = sample_vecs_and_splits_df_from_splits_csv_path(
+            splits_csv_path
+        )
+
+        splits_path_json_dict['sample_id_vec_path'] = {}
+        for split, sample_id_vec in split_sample_id_vec_map.items():
+            sample_id_vec_filename = get_sample_id_vector_filename_from_splits_csv_path(splits_csv_path, split)
+            logger.info(
+                f"Saving sample ID vector: {sample_id_vec_filename}"
+            )
+            sample_id_vec_path = constants.SAMPLE_ID_VECTORS_DIR / sample_id_vec_filename
+            splits_path_json_dict['sample_id_vec_path'][split] = str(sample_id_vec_path.relative_to(
+                constants.DATASET_ROOT
+            ))
+            if not dry_run:
+                np.save(
+                    sample_id_vec_path,
+                    sample_id_vec
+                )
+
+        splits_path_json_dict['inds_in_sample_vec_path'] = {}
+        for split, inds_in_sample_vec in split_inds_in_sample_vec_map.items():
+            inds_in_sample_vec_filename = get_inds_in_sample_vector_filename_from_splits_csv_path(splits_csv_path, split)
+            logger.info(
+                f"Saving inds in sample vector: {inds_in_sample_vec_filename}"
+            )
+            inds_in_sample_vec_path = constants.INDS_IN_SAMPLE_VECTORS_DIR / inds_in_sample_vec_filename
+            splits_path_json_dict['inds_in_sample_vec_path'][split] = str(sample_id_vec_path.relative_to(
+                constants.DATASET_ROOT
+            ))
+            if not dry_run:
+                np.save(
+                    inds_in_sample_vec_path,
+                    inds_in_sample_vec,
+                )
+        splits_path_json_filename = splits_csv_path.stem + ".json"
+        logger.info(
+            f"Saving splits path json: {splits_path_json_filename}"
+        )
+        splits_path_json_path = constants.SPLITS_JSONS_DIR / splits_path_json_filename
+        splits_path_json_paths[splits_csv_path] = splits_path_json_path
+        if not dry_run:
+            with splits_path_json_path.open('w') as fp:
+                json.dump(splits_path_json_dict, fp, indent=4)
+    return splits_path_json_paths
+
+
+@dataclasses.dataclass
+class TrainingReplicateMetadata:
+    biosound_group: str
+    id: str
+    timebin_dur: float
+    unit: str
+    data_source: str
+    train_dur: float
+    replicate_num: int
+    splits_json_path: str
+
+
+def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingReplicateMetadata:
+    name = splits_json_path.name
+    (biosound_group,
+    id_,
+    timebin_dur_1st_half,
+    timebin_dur_2nd_half,
+    unit,
+    data_source,
+    train_dur,
+    replicate_num,
+    _, _, _
+    ) = name.split('.')
+    id_ = id_.split('-')[-1]
+    timebin_dur = float(
+        timebin_dur_1st_half.split('-')[-1] + '.' + timebin_dur_2nd_half.split('-')[0]
+    )
+    train_dur = float(train_dur.split('-')[-1])
+    replicate_num = int(replicate_num.split('-')[-1])
+    return TrainingReplicateMetadata(
+        biosound_group,
+        id_,
+        timebin_dur,
+        unit,
+        data_source,
+        train_dur,
+        replicate_num,
+        str(splits_json_path.relative_to(constants.DATASET_ROOT))
+    )
 
 
 @dataclasses.dataclass
@@ -856,41 +1108,41 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Bengalese-Finch-Song": MakeSplitsParams(
         biosound_group='Bengalese-Finch-Song',
         unit='syllable',
-        timebin_dur_str='1',
-        total_train_dur=900,
-        val_dur=80,
-        test_dur=400,
-        train_subset_dur_id_only=600,
+        timebin_dur_str='1.0',
+        total_train_dur=900.,
+        val_dur=80.,
+        test_dur=400.,
+        train_subset_dur_id_only=600.,
         num_replicates=3,
     ),
     "Canary-Song": MakeSplitsParams(
         biosound_group='Canary-Song',
         unit='syllable',
         timebin_dur_str='2.7',
-        total_train_dur=10000,
-        val_dur=250,
-        test_dur=5000,
-        train_subset_dur_id_only=3600,
+        total_train_dur=10000.,
+        val_dur=250.,
+        test_dur=5000.,
+        train_subset_dur_id_only=3600.,
         num_replicates=3,
     ),
     "Mouse-Pup-Call": MakeSplitsParams(
         biosound_group='Mouse-Pup-Call',
         unit='call',
         timebin_dur_str='1.5',
-        total_train_dur=2100,
-        val_dur=50,
-        test_dur=750,
-        train_subset_dur_id_only=1500,
+        total_train_dur=2100.,
+        val_dur=50.,
+        test_dur=750.,
+        train_subset_dur_id_only=1500.,
         num_replicates=3,
     ),
     "Zebra-Finch-Song": MakeSplitsParams(
         biosound_group='Zebra-Finch-Song',
         unit='syllable',
         timebin_dur_str='0.5',
-        total_train_dur=130,
-        val_dur=10,
-        test_dur=40,
-        train_subset_dur_id_only=100,
+        total_train_dur=130.,
+        val_dur=10.,
+        test_dur=40.,
+        train_subset_dur_id_only=100.,
         num_replicates=3,
         make_leave_one_id_out_splits=False,
     ),
@@ -898,10 +1150,10 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
         biosound_group='Human-Speech',
         unit='phoneme',
         timebin_dur_str='10.0',
-        total_train_dur=18000,
-        val_dur=500,
-        test_dur=500,
-        train_subset_dur_id_only=16000,
+        total_train_dur=18000.,
+        val_dur=500.,
+        test_dur=500.,
+        train_subset_dur_id_only=16000.,
         num_replicates=3,
         make_leave_one_id_out_splits=False,
     ),
@@ -911,13 +1163,14 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
 def make_splits_all(
     biosound_groups: list[str], dry_run=True
 ) -> None:
+    metadata_for_json = []
     for biosound_group in biosound_groups:
         logger.info(
             f"Making splits for biosound group: {biosound_group}"
         )
         params = BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP[biosound_group]
         if biosound_group == 'Human-Speech':
-            make_splits_timit(
+            replicate_csv_paths = make_splits_timit(
                 total_train_dur=params.total_train_dur,
                 val_dur=params.val_dur,
                 train_subset_dur=params.train_subset_dur_id_only,
@@ -927,4 +1180,16 @@ def make_splits_all(
         else:
             params = dataclasses.asdict(params)
             params['dry_run'] = dry_run
-            make_splits_per_id(**params)
+            replicate_csv_paths = make_splits_per_id(**params)
+        splits_path_json_paths = save_vecs_and_make_json_from_csv_paths(
+            replicate_csv_paths, dry_run
+        )
+        for splits_path_json_path in splits_path_json_paths:
+            metadata = metadata_from_splits_json_path(
+                splits_path_json_path
+            )
+            metadata_for_json.append(
+                dataclasses.asdict(metadata)
+            )
+    with (constants.DATASET_ROOT / 'training-replicate-metadata.json').open('w') as fp:
+        json.dump(metadata_for_json, fp, indent=4)
