@@ -4,6 +4,7 @@ from .skip_temporal_conv_net import SkipTCN
 from .temporal_conv_net import TCN
 
 from . import (
+    dataset,
     eval,
     learncurve,
     loss,
