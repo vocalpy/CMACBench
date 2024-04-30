@@ -987,7 +987,7 @@ def save_vecs_and_make_json_from_csv_paths(
     splits_csv_paths: list[pathlib.Path],
     dry_run=True
 ):
-    splits_path_json_paths = {}
+    splits_path_json_paths = []
     for splits_csv_path in splits_csv_paths:
         logger.info(
             f"Making sample ID vector and inds in sample vector for splits in csv path:\n{splits_csv_path}"
@@ -1041,7 +1041,9 @@ def save_vecs_and_make_json_from_csv_paths(
             f"Saving splits path json: {splits_path_json_filename}"
         )
         splits_path_json_path = constants.SPLITS_JSONS_DIR / splits_path_json_filename
-        splits_path_json_paths[splits_csv_path] = splits_path_json_path
+        splits_path_json_paths.append(
+            splits_path_json_path
+        )
         if not dry_run:
             with splits_path_json_path.open('w') as fp:
                 json.dump(splits_path_json_dict, fp, indent=4)
