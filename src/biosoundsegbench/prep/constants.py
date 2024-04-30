@@ -125,3 +125,4 @@ INPUTS_TARGETS_PATHS_CSVS_DIR = SPLITS_DIR / "inputs-targets-paths-csvs"
 SAMPLE_ID_VECTORS_DIR = SPLITS_DIR / "sample-id-vectors"
 INDS_IN_SAMPLE_VECTORS_DIR = SPLITS_DIR / "inds-in-sample-vectors"
 SPLITS_JSONS_DIR = SPLITS_DIR / "splits-jsons"
+TRAINING_REPLICATE_METADATA_JSON_PATH = DATASET_ROOT / 'training-replicate-metadata.json'
