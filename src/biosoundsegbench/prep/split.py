@@ -1052,28 +1052,42 @@ def save_vecs_and_make_json_from_csv_paths(
 @dataclasses.dataclass
 class TrainingReplicateMetadata:
     biosound_group: str
-    id: str
+    id: str | None
     timebin_dur: float
     unit: str
-    data_source: str
+    data_source: str | None
     train_dur: float
     replicate_num: int
     splits_json_path: str
 
 
 def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingReplicateMetadata:
-    name = splits_json_path.name
-    (biosound_group,
-    id_,
-    timebin_dur_1st_half,
-    timebin_dur_2nd_half,
-    unit,
-    data_source,
-    train_dur,
-    replicate_num,
-    _, _, _
-    ) = name.split('.')
-    id_ = id_.split('-')[-1]
+    try:
+        name = splits_json_path.name
+        (biosound_group,
+        id_,
+        timebin_dur_1st_half,
+        timebin_dur_2nd_half,
+        unit,
+        data_source,
+        train_dur,
+        replicate_num,
+        _, _, _
+        ) = name.split('.')
+    except ValueError:
+        name = splits_json_path.name
+        (biosound_group,
+        timebin_dur_1st_half,
+        timebin_dur_2nd_half,
+        unit,
+        train_dur,
+        replicate_num,
+        _, _, _
+        ) = name.split('.')
+        id_ = None
+        data_source = None
+    if id_ is not None:
+        id_ = id_.split('-')[-1]
     timebin_dur = float(
         timebin_dur_1st_half.split('-')[-1] + '.' + timebin_dur_2nd_half.split('-')[0]
     )
