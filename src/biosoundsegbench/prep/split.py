@@ -280,7 +280,7 @@ def get_replicate_csv_filename_id_data_only(
     The 'train' split will contain a subset of the training data in the total splits.
     The validation and test set will be the same as for other training replicates.
     """
-    return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
+    return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur:.1f}.replicate-{replicate_num}.splits.csv"
 
 
 def get_replicate_csv_filename_leave_one_id_out(
@@ -443,7 +443,6 @@ def make_leave_one_out_df_per_id(
     one DataFrame for each training replicate.
     For each ID, combines training splits from all other IDs,
     and keeps the same validation and test splits for that ID.
-
     """
     labelsets = labels.get_labelsets()[biosound_group][unit]
 
@@ -615,7 +614,7 @@ def make_splits_per_id(
             )
             for id, leave_one_out_df in id_leave_one_out_df_map.items():
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
-                    biosound_group, id, timebin_dur_str, unit, train_subset_dur_leave_one_id_out, replicate_num
+                    biosound_group, id, timebin_dur_str, unit, train_subset_dur_id_only, replicate_num
                 )
                 replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
                 logger.info(
@@ -1029,7 +1028,7 @@ def save_vecs_and_make_json_from_csv_paths(
                 f"Saving inds in sample vector: {inds_in_sample_vec_filename}"
             )
             inds_in_sample_vec_path = constants.INDS_IN_SAMPLE_VECTORS_DIR / inds_in_sample_vec_filename
-            splits_path_json_dict['inds_in_sample_vec_path'][split] = str(sample_id_vec_path.relative_to(
+            splits_path_json_dict['inds_in_sample_vec_path'][split] = str(inds_in_sample_vec_path.relative_to(
                 constants.DATASET_ROOT
             ))
             if not dry_run:
@@ -1063,6 +1062,8 @@ class TrainingReplicateMetadata:
 
 def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingReplicateMetadata:
     try:
+        # Human-Speech doesn't have ID or data source in filename
+        # so it will raise a ValueError
         name = splits_json_path.name
         (biosound_group,
         id_,
@@ -1070,9 +1071,10 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
         timebin_dur_2nd_half,
         unit,
         data_source,
-        train_dur,
+        train_dur_1st_half,
+        train_dur_2nd_half,
         replicate_num,
-        _, _, _
+        _, _
         ) = name.split('.')
     except ValueError:
         name = splits_json_path.name
@@ -1080,9 +1082,10 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
         timebin_dur_1st_half,
         timebin_dur_2nd_half,
         unit,
-        train_dur,
+        train_dur_1st_half,
+        train_dur_2nd_half,
         replicate_num,
-        _, _, _
+        _, _
         ) = name.split('.')
         id_ = None
         data_source = None
@@ -1091,8 +1094,12 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
     timebin_dur = float(
         timebin_dur_1st_half.split('-')[-1] + '.' + timebin_dur_2nd_half.split('-')[0]
     )
-    train_dur = float(train_dur.split('-')[-1])
-    replicate_num = int(replicate_num.split('-')[-1])
+    train_dur = float(
+        train_dur_1st_half.split('-')[-1] + '.' + train_dur_2nd_half.split('-')[0]
+    )
+    replicate_num = int(
+            replicate_num.split('-')[-1]
+    )
     return TrainingReplicateMetadata(
         biosound_group,
         id_,
@@ -1205,5 +1212,5 @@ def make_splits_all(
             metadata_for_json.append(
                 dataclasses.asdict(metadata)
             )
-    with (constants.DATASET_ROOT / 'training-replicate-metadata.json').open('w') as fp:
+    with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('w') as fp:
         json.dump(metadata_for_json, fp, indent=4)
