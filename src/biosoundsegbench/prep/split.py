@@ -91,7 +91,7 @@ def get_split_wav_paths(
 TARGET_COLUMNS = [
     "multi_frame_labels_path",
     "binary_frame_labels_path",
-    "boundary_onehot_path",
+    "boundary_frame_labels_path",
 ]
 
 
@@ -190,18 +190,18 @@ def split_wav_paths_to_df(
                     binary_frame_labels_path.relative_to(constants.DATASET_ROOT)
                 )
 
-            if "boundary_onehot_path" in target_columns:
-                boundary_onehot_path = parent / (
+            if "boundary_frame_labels_path" in target_columns:
+                boundary_frame_labels_path = parent / (
                     name + f".timebin-{timebin_dur_str}-ms.{unit}.boundary-onehot.npy"
                 )
-                if not boundary_onehot_path.exists():
+                if not boundary_frame_labels_path.exists():
                     raise FileNotFoundError(
-                        f"Did not find `boundary_onehot_path` for `audio_path`.\n"
+                        f"Did not find `boundary_frame_labels_path` for `audio_path`.\n"
                         f"`audio_path`: {audio_path}"
-                        f"`boundary_onehot_path`: {boundary_onehot_path}"
+                        f"`boundary_frame_labels_path`: {boundary_frame_labels_path}"
                     )
-                record['boundary_onehot_path'] = str(
-                    boundary_onehot_path.relative_to(constants.DATASET_ROOT)
+                record['boundary_frame_labels_path'] = str(
+                    boundary_frame_labels_path.relative_to(constants.DATASET_ROOT)
                 )
             records.append(record)
     df = pd.DataFrame.from_records(records)
@@ -744,7 +744,7 @@ def make_splits_timit(
         split_wav_paths,
         unit='phoneme',
         timebin_dur_str="10.0",
-        target_columns=['multi_frame_labels_path', 'boundary_onehot_path'],
+        target_columns=['multi_frame_labels_path', 'boundary_frame_labels_path'],
     )
     splits_df['group'] = 'Human-Speech'
     splits_from_df = sorted(splits_df.split.unique())
@@ -805,7 +805,7 @@ def make_splits_timit(
             replicate_wav_paths_for_other_csvs,
             unit='phoneme',
             timebin_dur_str="1.0",
-            target_columns=['multi_frame_labels_path', 'boundary_onehot_path'],
+            target_columns=['multi_frame_labels_path', 'boundary_frame_labels_path'],
         )
         splits_from_df = sorted(replicate_1ms_df.split.unique())
         logger.info(
@@ -829,7 +829,7 @@ def make_splits_timit(
             replicate_wav_paths_for_other_csvs,
             unit='word',
             timebin_dur_str="10.0",
-            target_columns=['boundary_onehot_path'],
+            target_columns=['boundary_frame_labels_path'],
         )
         splits_from_df = sorted(replicate_word_df.split.unique())
         logger.info(

@@ -16,13 +16,13 @@ from biosoundsegbench import transforms
 
 
 VALID_TARGET_TYPES = (
-    'boundary_onehot',
+    'boundary_frame_labels',
     'multi_frame_labels',
     'binary_frame_labels',
-    ('boundary_onehot', 'binary_frame_labels'),
-    ('binary_frame_labels', 'boundary_onehot'),
-    ('boundary_onehot', 'multi_frame_labels'),
-    ('multi_frame_labels', 'boundary_onehot'),
+    ('boundary_frame_labels', 'binary_frame_labels'),
+    ('binary_frame_labels', 'boundary_frame_labels'),
+    ('boundary_frame_labels', 'multi_frame_labels'),
+    ('multi_frame_labels', 'boundary_frame_labels'),
     'None',
 )
 
@@ -30,7 +30,7 @@ VALID_TARGET_TYPES = (
 FRAMES_PATH_COL_NAME = "frames_path"
 MULTI_FRAME_LABELS_PATH_COL_NAME = "multi_frame_labels_path"
 BINARY_FRAME_LABELS_PATH_COL_NAME = "binary_frame_labels_path"
-BOUNDARY_ONEHOT_PATH_COL_NAME = "boundary_onehot_path"
+BOUNDARY_ONEHOT_PATH_COL_NAME = "boundary_frame_labels_path"
 
 
 @dataclasses.dataclass
@@ -176,12 +176,12 @@ class BioSoundSegBench:
             self.target_paths['binary_frame_labels'] = self.split_df[
                 BINARY_FRAME_LABELS_PATH_COL_NAME
             ].values
-        if 'boundary_onehot' in self.target_type:
-            self.target_paths['boundary_onehot'] = self.split_df[
+        if 'boundary_frame_labels' in self.target_type:
+            self.target_paths['boundary_frame_labels'] = self.split_df[
                 BOUNDARY_ONEHOT_PATH_COL_NAME
             ].values
         else:
-            self.boundary_onehot_paths = None
+            self.boundary_frame_labels_paths = None
 
         self.sample_ids = np.load(
             getattr(self.splits_metadata.sample_id_vector_paths, split)
@@ -205,9 +205,9 @@ class BioSoundSegBench:
         tmp_x_ind = 0
         tmp_item = self.__getitem__(tmp_x_ind)
         input_shape = tmp_item["frames"].shape
-        if split == 'train' and len(input_shape) == 3:
+        if self.split == 'train' and len(input_shape) == 3:
             return input_shape
-        elif split in ('val', 'test', 'predict') and len(input_shape) == 4:
+        elif self.split in ('val', 'test', 'predict') and len(input_shape) == 4:
             # discard windows dimension from shape --
             # it's sample dependent and not what we want
             return input_shape[1:]

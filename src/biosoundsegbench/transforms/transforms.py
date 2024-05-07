@@ -17,10 +17,10 @@ class FrameLabelsToBoundaryOnehot:
         # The actually change occurs at :math:`i`=np.diff(frame_labels) + 1,
         # but we shift everything to the right by 1 when we add a first index indicating a boundary.
         # This first index we add is the onset of the "first" segment -- typically will be background class.
-        boundary_onehot = (np.diff(frame_labels, axis=0) != 0).astype(int)
-        boundary_onehot = np.insert(boundary_onehot, 0, 1)
+        boundary_frame_labels = (np.diff(frame_labels, axis=0) != 0).astype(int)
+        boundary_frame_labels = np.insert(boundary_frame_labels, 0, 1)
 
-        return boundary_onehot
+        return boundary_frame_labels
 
 
 class FrameLabelsMultiToBinary:

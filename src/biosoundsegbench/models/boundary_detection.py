@@ -44,14 +44,14 @@ class BoundaryDetectionModel(lightning.LightningModule):
         return self.optimizer
 
     def training_step(self, batch: tuple, batch_idx: int):
-        frames, boundary_onehot = batch['frames'], batch['boundary_onehot']
+        frames, boundary_frame_labels = batch['frames'], batch['boundary_frame_labels']
         out = self.network(frames)
-        loss = self.loss(out, boundary_onehot)
+        loss = self.loss(out, boundary_frame_labels)
         self.log("train_loss", loss, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch: tuple, batch_idx: int):
-        x_window, y = batch["frames_window"], batch["boundary_onehot"]
+        x_window, y = batch["frames_window"], batch["boundary_frame_labels"]
         # remove "batch" dimension added by collate_fn to x
         # we keep for y because loss still expects the first dimension to be batch
         # TODO: fix this weirdness. Diff't collate_fn?

@@ -14,7 +14,7 @@ from .transforms import FrameLabelsMultiToBinary, FrameLabelsToBoundaryOnehot, V
 
 
 TARGET_TYPES = (
-    'boundary_onehot',
+    'boundary_frame_labels',
     'multi_frame_labels',
     'binary_frame_labels',
 )

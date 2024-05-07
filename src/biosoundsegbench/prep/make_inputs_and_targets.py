@@ -31,19 +31,19 @@ SCRIBE = crowsetta.Transcriber(format='simple-seq')
 
 
 # ---- helper functions used to make different types of targets -------------------------
-def frame_labels_to_boundary_onehot(frame_labels):
+def frame_labels_to_boundary_frame_labels(frame_labels):
     """Converts vector of frame labels to one-hot vector
     indicating "boundary" (1) or "not a boundary" (0)."""
     # a boundary occurs in frame labels
     # wherever the first-order difference is not 0.
-    boundary_onehot = (np.diff(frame_labels, axis=0) != 0).astype(int)
+    boundary_frame_labels = (np.diff(frame_labels, axis=0) != 0).astype(int)
     # The actual change occurs at :math:`i`=np.diff(frame_labels) + 1,
     # but we shift everything to the right by 1 when we add a first index
     # indicating a boundary.
     # This first index we add is the onset of the "first" segment
     # -- typically will be a segment belonging to the background class
-    boundary_onehot = np.insert(boundary_onehot, 0, 1)
-    return boundary_onehot
+    boundary_frame_labels = np.insert(boundary_frame_labels, 0, 1)
+    return boundary_frame_labels
 
 
 def frame_labels_multi_to_binary(
@@ -79,7 +79,7 @@ def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
     return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.binary-frame-labels.npy"
 
 
-def get_boundary_onehot_filename(audio_path, timebin_dur, unit):
+def get_boundary_frame_labels_filename(audio_path, timebin_dur, unit):
     """Get name for boundary detection onehot encoding file,
     the target outputs for the network.
 
@@ -206,12 +206,12 @@ def audio_and_annot_to_inputs_and_targets(
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
-    boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
-    boundary_onehot_filename = get_boundary_onehot_filename(
+    boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
+    boundary_frame_labels_filename = get_boundary_frame_labels_filename(
         audio_path, spect_params.timebin_dur, unit
     )
-    boundary_onehot_path = dst / boundary_onehot_filename
-    np.save(boundary_onehot_path, boundary_onehot)
+    boundary_frame_labels_path = dst / boundary_frame_labels_filename
+    np.save(boundary_frame_labels_path, boundary_frame_labels)
 
 
 # ---- Bengalese finch song -------------------------------------------------------------
@@ -355,12 +355,12 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
-    boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
-    boundary_onehot_filename = get_boundary_onehot_filename(
+    boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
+    boundary_frame_labels_filename = get_boundary_frame_labels_filename(
         audio_path, timebin_dur, unit
     )
-    boundary_onehot_path = dst / boundary_onehot_filename
-    np.save(boundary_onehot_path, boundary_onehot)
+    boundary_frame_labels_path = dst / boundary_frame_labels_filename
+    np.save(boundary_frame_labels_path, boundary_frame_labels)
 
 
 CANARY_SPECT_PARAMS = [
@@ -602,12 +602,12 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, frame_labels_binary)
 
-        boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
-        boundary_onehot_filename = get_boundary_onehot_filename(
+        boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
+        boundary_frame_labels_filename = get_boundary_frame_labels_filename(
             audio_path, spect_params.timebin_dur, unit
         )
-        boundary_onehot_path = dst / boundary_onehot_filename
-        np.save(boundary_onehot_path, boundary_onehot)
+        boundary_frame_labels_path = dst / boundary_frame_labels_filename
+        np.save(boundary_frame_labels_path, boundary_frame_labels)
 
     else:  # no segments
         all_zeros_vector = np.zeros_like(t).astype(int)
@@ -623,11 +623,11 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, all_zeros_vector)
 
-        boundary_onehot_filename = get_boundary_onehot_filename(
+        boundary_frame_labels_filename = get_boundary_frame_labels_filename(
             audio_path, spect_params.timebin_dur, unit
         )
-        boundary_onehot_path = dst / boundary_onehot_filename
-        np.save(boundary_onehot_path, all_zeros_vector)
+        boundary_frame_labels_path = dst / boundary_frame_labels_filename
+        np.save(boundary_frame_labels_path, all_zeros_vector)
 
 
 JOURJINE_ET_AL_2023_SPECT_PARAMS = [
@@ -828,12 +828,12 @@ def audio_and_annot_to_inputs_and_targets_zf(
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
-    boundary_onehot = frame_labels_to_boundary_onehot(frame_labels_multi)
-    boundary_onehot_filename = get_boundary_onehot_filename(
+    boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
+    boundary_frame_labels_filename = get_boundary_frame_labels_filename(
         audio_path, spect_params.timebin_dur, unit
     )
-    boundary_onehot_path = dst / boundary_onehot_filename
-    np.save(boundary_onehot_path, boundary_onehot)
+    boundary_frame_labels_path = dst / boundary_frame_labels_filename
+    np.save(boundary_frame_labels_path, boundary_frame_labels)
 
 
 ZF_SPECT_PARAMS = [
@@ -972,7 +972,7 @@ class SpeechMFCCParams:
     audio_path_key: str = 'audio_path'
 
 
-def boundary_onehot_from_times(
+def boundary_frame_labels_from_times(
     boundary_times: np.ndarray,
     time_bins: np.ndarray,
 ):
@@ -986,9 +986,9 @@ def boundary_onehot_from_times(
         [np.argmin(np.abs(time_bins - boundary_time))
          for boundary_time in boundary_times]
     )
-    boundary_onehot = np.zeros_like(time_bins).astype(int)
-    boundary_onehot[boundary_inds] = 1
-    return boundary_onehot
+    boundary_frame_labels = np.zeros_like(time_bins).astype(int)
+    boundary_frame_labels[boundary_inds] = 1
+    return boundary_frame_labels
 
 
 
@@ -1063,15 +1063,15 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 voc.metrics.segmentation.ir.concat_starts_and_stops(
                     annot.onsets_s, annot.offsets_s)
             )
-            boundary_onehot = boundary_onehot_from_times(
+            boundary_frame_labels = boundary_frame_labels_from_times(
                 boundary_times,
                 times
             )
-            boundary_onehot_filename = get_boundary_onehot_filename(
+            boundary_frame_labels_filename = get_boundary_frame_labels_filename(
                 audio_path, mfcc_params.timebin_dur, unit
             )
-            boundary_onehot_path = dst / boundary_onehot_filename
-            np.save(boundary_onehot_path, boundary_onehot)
+            boundary_frame_labels_path = dst / boundary_frame_labels_filename
+            np.save(boundary_frame_labels_path, boundary_frame_labels)
         elif unit == 'word':
             # we don't generate multi-class frame labels because
             # of the extreme imbalance between classes --
@@ -1086,15 +1086,15 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 voc.metrics.segmentation.ir.concat_starts_and_stops(
                     annot.onsets_s, annot.offsets_s)
             )
-            boundary_onehot = boundary_onehot_from_times(
+            boundary_frame_labels = boundary_frame_labels_from_times(
                 boundary_times,
                 times
             )
-            boundary_onehot_filename = get_boundary_onehot_filename(
+            boundary_frame_labels_filename = get_boundary_frame_labels_filename(
                 audio_path, mfcc_params.timebin_dur, unit
             )
-            boundary_onehot_path = dst / boundary_onehot_filename
-            np.save(boundary_onehot_path, boundary_onehot)
+            boundary_frame_labels_path = dst / boundary_frame_labels_filename
+            np.save(boundary_frame_labels_path, boundary_frame_labels)
 
 
 HUMAN_SPEECH_MFCC_PARAMS = [
