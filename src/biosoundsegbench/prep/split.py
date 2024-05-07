@@ -192,7 +192,7 @@ def split_wav_paths_to_df(
 
             if "boundary_frame_labels_path" in target_columns:
                 boundary_frame_labels_path = parent / (
-                    name + f".timebin-{timebin_dur_str}-ms.{unit}.boundary-onehot.npy"
+                    name + f".timebin-{timebin_dur_str}-ms.{unit}.boundary-frame-labels.npy"
                 )
                 if not boundary_frame_labels_path.exists():
                     raise FileNotFoundError(

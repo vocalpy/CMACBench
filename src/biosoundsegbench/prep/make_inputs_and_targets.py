@@ -84,7 +84,7 @@ def get_boundary_frame_labels_filename(audio_path, timebin_dur, unit):
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
-    return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.boundary-onehot.npy"
+    return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.boundary-frame-labels.npy"
 
 
 @dataclass
