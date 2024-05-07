@@ -16,10 +16,3 @@ def clean(dry_run=True):
     )
     if not dry_run:
         shutil.rmtree(constants.DATASET_ROOT)
-
-    logger.info(
-        f"Removing DATA_WE_CANT_SHARE: {constants.DATA_WE_CANT_SHARE}"
-    )
-    if not dry_run:
-        shutil.rmtree(constants.DATA_WE_CANT_SHARE)
-
