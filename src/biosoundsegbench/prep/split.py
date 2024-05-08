@@ -976,11 +976,11 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
 
 
 def get_sample_id_vector_filename_from_splits_csv_path(splits_csv_path, split):
-    return splits_csv_path.stem + f'.{split}.' + vak.datasets.frame_classification.constants.SAMPLE_IDS_ARRAY_FILENAME
+    return splits_csv_path.stem + f'.{split}.' + vak.datapipes.frame_classification.constants.SAMPLE_IDS_ARRAY_FILENAME
 
 
 def get_inds_in_sample_vector_filename_from_splits_csv_path(splits_csv_path, split):
-    return splits_csv_path.stem + f'.{split}.' + vak.datasets.frame_classification.constants.INDS_IN_SAMPLE_ARRAY_FILENAME
+    return splits_csv_path.stem + f'.{split}.' + vak.datapipes.frame_classification.constants.INDS_IN_SAMPLE_ARRAY_FILENAME
 
 
 def save_vecs_and_make_json_from_csv_paths(
