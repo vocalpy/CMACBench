@@ -230,7 +230,7 @@ def get_df_with_train_subset(
     # we make multiple subsets and take the one with the duration closest to the target
     subset_dfs = []
     for _ in range(n_iters):
-        train_inds, val_inds, test_inds = vak.prep.split.split.train_test_dur_split_inds(
+        train_inds, _, _ = vak.prep.split.split.train_test_dur_split_inds(
             durs=durs,
             labels=labels,
             labelset=labelset,
@@ -917,8 +917,8 @@ def argsort_by_label_freq(
 
 
 def sample_vecs_and_splits_df_from_splits_csv_path(
-        splits_csv_path
-        ):
+        splits_csv_path: pathlib.Path
+        ) -> pd.DataFrame:
     logger.info(
         f"Loading DataFrame from splits_csv_path: {splits_csv_path}"
     )
@@ -1004,6 +1004,7 @@ def save_vecs_and_make_json_from_csv_paths(
         ) = sample_vecs_and_splits_df_from_splits_csv_path(
             splits_csv_path
         )
+        splits_df_out.to_csv(splits_csv_path)
 
         splits_path_json_dict['sample_id_vec_path'] = {}
         for split, sample_id_vec in split_sample_id_vec_map.items():
