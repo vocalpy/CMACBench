@@ -95,7 +95,9 @@ def set_to_map(group_unit_id_labelsets_map):
                 id: vak.common.labels.to_map(
                     # we need to convert from list back to set when loading from json
                     set(labelset),
-                    map_unlabeled=True,
+                    map_background=True,
+                    # next line: just bein' explicit, like ya do
+                    background_label=vak.common.constants.DEFAULT_BACKGROUND_LABEL,
                 )
                 for id, labelset in id_labelset_map.items()
             }
