@@ -844,7 +844,7 @@ def make_splits_timit(
                 f"Split '{split}' has duration: {replicate_word_df[replicate_word_df.split == split].duration.sum()}"
             )
 
-        replicate_word_csv_filename = f"Human-Speech.frame-dur-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_word_csv_filename = f"Human-Speech.word.frame-dur-10.0-ms.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
         replicate_word_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_word_csv_filename
         logger.info(
             f"Saving replicate with word-level annotations as: {replicate_word_csv_path}"
