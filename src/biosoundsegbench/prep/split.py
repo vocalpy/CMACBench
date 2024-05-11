@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_durs_from_wav_paths(wav_paths: list[pathlib.Path]):
+    """Get list of durations of wav files in seconds,
+    given a list of paths to the wav files"""
     durs = []
     for wav_path in wav_paths:
         sound = voc.Audio.read(wav_path)
@@ -34,6 +36,8 @@ SCRIBE = crowsetta.Transcriber(format='simple-seq')
 
 
 def get_labels_from_csv_paths(csv_paths: list[pathlib.Path]):
+    """Get list of labels in csv annotation files,
+    given a list of paths to the csv files"""
     all_labels = []
     for csv_path in csv_paths:
         try:
@@ -98,7 +102,7 @@ TARGET_COLUMNS = [
 def split_wav_paths_to_df(
     split_wav_paths:dict,
     unit: str = 'syllable',
-    timebin_dur_str: str = "1",
+    frame_dur_str: str = "1",
     target_columns=TARGET_COLUMNS,
     annot_format="simple-seq",
 ):
@@ -120,7 +124,7 @@ def split_wav_paths_to_df(
             f"Valid columns are: {TARGET_COLUMNS}"
         )
 
-    timebin_dur = float(timebin_dur_str) * 1e-3
+    frame_dur = float(frame_dur_str) * 1e-3
     records = []
     for split, audio_paths in split_wav_paths.items():
         for audio_path in audio_paths:
@@ -138,7 +142,7 @@ def split_wav_paths_to_df(
                     f"`annot_path`: {annot_path}"
                 )
 
-            frames_path = parent / (name + f".timebin-{timebin_dur_str}-ms.frames.npz")
+            frames_path = parent / (name + f".timebin-{frame_dur_str}-ms.frames.npz")
             if not frames_path.exists():
                 raise FileNotFoundError(
                     f"Did not find `frames_path` for `audio_path`.\n"
@@ -156,7 +160,7 @@ def split_wav_paths_to_df(
                 'frames_path': str(
                     frames_path.relative_to(constants.DATASET_ROOT)
                 ),
-                'timebin_dur': timebin_dur,
+                'frame_dur': frame_dur,
                 'duration': duration,
                 'annot_format': annot_format,
                 'split': split,
@@ -164,7 +168,7 @@ def split_wav_paths_to_df(
 
             if "multi_frame_labels_path" in target_columns:
                 multi_frame_labels_path = parent / (
-                    name + f".timebin-{timebin_dur_str}-ms.{unit}.multi-frame-labels.npy"
+                    name + f".timebin-{frame_dur_str}-ms.{unit}.multi-frame-labels.npy"
                 )
                 if not multi_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -178,7 +182,7 @@ def split_wav_paths_to_df(
 
             if "binary_frame_labels_path" in target_columns:
                 binary_frame_labels_path = parent / (
-                    name + f".timebin-{timebin_dur_str}-ms.{unit}.binary-frame-labels.npy"
+                    name + f".timebin-{frame_dur_str}-ms.{unit}.binary-frame-labels.npy"
                 )
                 if not binary_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -192,7 +196,7 @@ def split_wav_paths_to_df(
 
             if "boundary_frame_labels_path" in target_columns:
                 boundary_frame_labels_path = parent / (
-                    name + f".timebin-{timebin_dur_str}-ms.{unit}.boundary-frame-labels.npy"
+                    name + f".timebin-{frame_dur_str}-ms.{unit}.boundary-frame-labels.npy"
                 )
                 if not boundary_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -261,17 +265,17 @@ def get_df_with_train_subset(
     return df_out
 
 
-def get_splits_csv_filename_id(biosound_group: str, id: str, timebin_dur_str, unit: str) -> str:
+def get_splits_csv_filename_id(biosound_group: str, id: str, frame_dur_str, unit: str) -> str:
     """Get filename for csv that contains all splits for one ID.
 
     These splits are used to get subsets of training data for each training replicate,
     while holding the validation and test set constant.
     """
-    return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.splits.csv"
+    return f"{biosound_group}.{unit}.id-{id}.frame-dur-{frame_dur_str}-ms.splits.csv"
 
 
 def get_replicate_csv_filename_id_data_only(
-    biosound_group: str, id: str, timebin_dur_str, unit: str, train_dur: float, replicate_num: int,
+    biosound_group: str, id: str, frame_dur_str, unit: str, train_dur: float, replicate_num: int,
 ) -> str:
     """Get filename for csv that contains the split for one training replicate for one ID.
 
@@ -280,11 +284,11 @@ def get_replicate_csv_filename_id_data_only(
     The 'train' split will contain a subset of the training data in the total splits.
     The validation and test set will be the same as for other training replicates.
     """
-    return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur:.1f}.replicate-{replicate_num}.splits.csv"
+    return f"{biosound_group}.id-{id}.timebin-{frame_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur:.1f}.replicate-{replicate_num}.splits.csv"
 
 
 def get_replicate_csv_filename_leave_one_id_out(
-    biosound_group: str, id: str, timebin_dur_str, unit: str, train_dur: float, replicate_num: int,
+    biosound_group: str, id: str, frame_dur_str, unit: str, train_dur: float, replicate_num: int,
 ) -> str:
     """Get filename for csv that contains the split for one training replicate for one ID.
 
@@ -293,7 +297,7 @@ def get_replicate_csv_filename_leave_one_id_out(
     The 'train' split will contain a subset of the training data in the total splits.
     The validation and test set will be the same as for other training replicates.
     """
-    return f"{biosound_group}.id-{id}.timebin-{timebin_dur_str}-ms.{unit}.leave-one-id-out.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
+    return f"{biosound_group}.id-{id}.timebin-{frame_dur_str}-ms.{unit}.leave-one-id-out.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
 
 
 BIOSOUND_GROUP_DIR_MAP = {
@@ -307,7 +311,7 @@ BIOSOUND_GROUP_DIR_MAP = {
 def get_splits_df_and_replicate_dfs_per_id(
     biosound_group: str,
     unit: str,
-    timebin_dur_str: str,
+    frame_dur_str: str,
     total_train_dur: float,
     val_dur: float,
     test_dur: float,
@@ -370,7 +374,7 @@ def get_splits_df_and_replicate_dfs_per_id(
         splits_df = split_wav_paths_to_df(
             split_wav_paths,
             unit,
-            timebin_dur_str,
+            frame_dur_str,
             target_columns,
         )
         splits_df['id'] = id
@@ -385,7 +389,7 @@ def get_splits_df_and_replicate_dfs_per_id(
             )
         id_splits_df_map[id] = splits_df
 
-        splits_csv_filename = get_splits_csv_filename_id(biosound_group, id, timebin_dur_str, unit)
+        splits_csv_filename = get_splits_csv_filename_id(biosound_group, id, frame_dur_str, unit)
         splits_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / splits_csv_filename
         logger.info(
             f"Saving splits as: {splits_csv_path}"
@@ -415,7 +419,7 @@ def get_splits_df_and_replicate_dfs_per_id(
 
             id_replicate_dfs_map[id].append(replicate_df)
             replicate_csv_filename = get_replicate_csv_filename_id_data_only(
-                biosound_group, id, timebin_dur_str, unit, train_subset_dur, replicate_num
+                biosound_group, id, frame_dur_str, unit, train_subset_dur, replicate_num
             )
             replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
             logger.info(
@@ -524,7 +528,7 @@ def make_leave_one_out_df_per_id(
 def make_splits_per_id(
     biosound_group: str,
     unit: str,
-    timebin_dur_str: str,
+    frame_dur_str: str,
     total_train_dur: float,
     val_dur: float,
     test_dur: float,
@@ -566,7 +570,7 @@ def make_splits_per_id(
     from all other IDs.
     """
     logger.info(
-        f"Making per-ID splits for biosound group '{biosound_group}', unit '{unit}', and timebin {timebin_dur_str}. "
+        f"Making per-ID splits for biosound group '{biosound_group}', unit '{unit}', and timebin {frame_dur_str}. "
         f"Splits will have a training split with duration of {total_train_dur} s, a validation split with duration of {val_dur} s, "
         f"and a test set with duration of {test_dur}. For each ID will there will be {num_replicates} training replicates, "
         f"that subsets the training data split to a duration of {train_subset_dur_id_only} s."
@@ -575,7 +579,7 @@ def make_splits_per_id(
     id_splits_df_map, id_replicate_dfs_map, replicate_csv_paths = get_splits_df_and_replicate_dfs_per_id(
         biosound_group,
         unit,
-        timebin_dur_str,
+        frame_dur_str,
         total_train_dur,
         val_dur,
         test_dur,
@@ -614,7 +618,7 @@ def make_splits_per_id(
             )
             for id, leave_one_out_df in id_leave_one_out_df_map.items():
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
-                    biosound_group, id, timebin_dur_str, unit, train_subset_dur_id_only, replicate_num
+                    biosound_group, id, frame_dur_str, unit, train_subset_dur_id_only, replicate_num
                 )
                 replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
                 logger.info(
@@ -646,7 +650,7 @@ def make_splits_per_id(
             )
             for id, leave_one_out_df in id_leave_one_out_df_map.items():
                 replicate_csv_filename = get_replicate_csv_filename_leave_one_id_out(
-                    biosound_group, id, timebin_dur_str, unit, train_dur_from_n_train_ids, replicate_num
+                    biosound_group, id, frame_dur_str, unit, train_dur_from_n_train_ids, replicate_num
                 )
                 replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
                 logger.info(
@@ -743,7 +747,7 @@ def make_splits_timit(
     splits_df = split_wav_paths_to_df(
         split_wav_paths,
         unit='phoneme',
-        timebin_dur_str="10.0",
+        frame_dur_str="10.0",
         target_columns=['multi_frame_labels_path', 'boundary_frame_labels_path'],
     )
     splits_df['group'] = 'Human-Speech'
@@ -804,7 +808,7 @@ def make_splits_timit(
         replicate_1ms_df = split_wav_paths_to_df(
             replicate_wav_paths_for_other_csvs,
             unit='phoneme',
-            timebin_dur_str="1.0",
+            frame_dur_str="1.0",
             target_columns=['multi_frame_labels_path', 'boundary_frame_labels_path'],
         )
         splits_from_df = sorted(replicate_1ms_df.split.unique())
@@ -828,7 +832,7 @@ def make_splits_timit(
         replicate_word_df = split_wav_paths_to_df(
             replicate_wav_paths_for_other_csvs,
             unit='word',
-            timebin_dur_str="10.0",
+            frame_dur_str="10.0",
             target_columns=['boundary_frame_labels_path'],
         )
         splits_from_df = sorted(replicate_word_df.split.unique())
@@ -1055,7 +1059,7 @@ def save_vecs_and_make_json_from_csv_paths(
 class TrainingReplicateMetadata:
     biosound_group: str
     id: str | None
-    timebin_dur: float
+    frame_dur: float
     unit: str
     data_source: str | None
     train_dur: float
@@ -1070,8 +1074,8 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
         name = splits_json_path.name
         (biosound_group,
         id_,
-        timebin_dur_1st_half,
-        timebin_dur_2nd_half,
+        frame_dur_1st_half,
+        frame_dur_2nd_half,
         unit,
         data_source,
         train_dur_1st_half,
@@ -1082,8 +1086,8 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
     except ValueError:
         name = splits_json_path.name
         (biosound_group,
-        timebin_dur_1st_half,
-        timebin_dur_2nd_half,
+        frame_dur_1st_half,
+        frame_dur_2nd_half,
         unit,
         train_dur_1st_half,
         train_dur_2nd_half,
@@ -1094,8 +1098,8 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
         data_source = None
     if id_ is not None:
         id_ = id_.split('-')[-1]
-    timebin_dur = float(
-        timebin_dur_1st_half.split('-')[-1] + '.' + timebin_dur_2nd_half.split('-')[0]
+    frame_dur = float(
+        frame_dur_1st_half.split('-')[-1] + '.' + frame_dur_2nd_half.split('-')[0]
     )
     train_dur = float(
         train_dur_1st_half.split('-')[-1] + '.' + train_dur_2nd_half.split('-')[0]
@@ -1106,7 +1110,7 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
     return TrainingReplicateMetadata(
         biosound_group,
         id_,
-        timebin_dur,
+        frame_dur,
         unit,
         data_source,
         train_dur,
@@ -1119,7 +1123,7 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
 class MakeSplitsParams:
     biosound_group: str
     unit: str
-    timebin_dur_str: str | list[str]
+    frame_dur_str: str | list[str]
     total_train_dur: float
     val_dur: float
     test_dur: float
@@ -1132,7 +1136,7 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Bengalese-Finch-Song": MakeSplitsParams(
         biosound_group='Bengalese-Finch-Song',
         unit='syllable',
-        timebin_dur_str='1.0',
+        frame_dur_str='1.0',
         total_train_dur=900.,
         val_dur=80.,
         test_dur=400.,
@@ -1142,7 +1146,7 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Canary-Song": MakeSplitsParams(
         biosound_group='Canary-Song',
         unit='syllable',
-        timebin_dur_str='2.7',
+        frame_dur_str='2.7',
         total_train_dur=10000.,
         val_dur=250.,
         test_dur=5000.,
@@ -1152,7 +1156,7 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Mouse-Pup-Call": MakeSplitsParams(
         biosound_group='Mouse-Pup-Call',
         unit='call',
-        timebin_dur_str='1.5',
+        frame_dur_str='1.5',
         total_train_dur=2100.,
         val_dur=50.,
         test_dur=750.,
@@ -1162,7 +1166,7 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Zebra-Finch-Song": MakeSplitsParams(
         biosound_group='Zebra-Finch-Song',
         unit='syllable',
-        timebin_dur_str='0.5',
+        frame_dur_str='0.5',
         total_train_dur=130.,
         val_dur=10.,
         test_dur=40.,
@@ -1173,7 +1177,7 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
     "Human-Speech": MakeSplitsParams(
         biosound_group='Human-Speech',
         unit='phoneme',
-        timebin_dur_str='10.0',
+        frame_dur_str='10.0',
         total_train_dur=18000.,
         val_dur=500.,
         test_dur=500.,
