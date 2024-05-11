@@ -56,35 +56,35 @@ def frame_labels_multi_to_binary(
 
 
 # ---- helper functions to get filenames, for consistency across datasets --------------------
-def get_frames_filename(audio_path, timebin_dur):
+def get_frames_filename(audio_path, frame_dur):
     """Get name for frames file, where frames are the input to the network.
 
     Helper function we use to standardize the name"""
-    return audio_path.name + f".timebin-{timebin_dur}-ms.frames.npz"
+    return audio_path.name + f".frame-dur-{frame_dur}-ms.frames.npz"
 
 
-def get_multi_frame_labels_filename(audio_path, timebin_dur, unit):
+def get_multi_frame_labels_filename(audio_path, frame_dur, unit):
     """Get name for multiclass frame labels file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
-    return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.multi-frame-labels.npy"
+    return audio_path.name + f".frame-dur-{frame_dur}-ms.{unit}.multi-frame-labels.npy"
 
 
-def get_binary_frame_labels_filename(audio_path, timebin_dur, unit):
+def get_binary_frame_labels_filename(audio_path, frame_dur, unit):
     """Get name for binary classification frame labels file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
-    return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.binary-frame-labels.npy"
+    return audio_path.name + f".frame-dur-{frame_dur}-ms.{unit}.binary-frame-labels.npy"
 
 
-def get_boundary_frame_labels_filename(audio_path, timebin_dur, unit):
+def get_boundary_frame_labels_filename(audio_path, frame_dur, unit):
     """Get name for boundary detection onehot encoding file,
     the target outputs for the network.
 
     Helper function we use to standardize the name"""
-    return audio_path.name + f".timebin-{timebin_dur}-ms.{unit}.boundary-frame-labels.npy"
+    return audio_path.name + f".frame-dur-{frame_dur}-ms.{unit}.boundary-frame-labels.npy"
 
 
 @dataclass
@@ -109,8 +109,8 @@ class SpectParams:
         'log_spect' transforms the spectrogram to log(spectrogram), and
         'log_spect_plus_one' does the same thing but adds one to each element.
         Default is None. If None, no transform is applied.
-    timebin_dur : int
-        Expected duration of timebins in spectrogram, in milliseconds.
+    frame_dur : int
+        Expected duration of frame in spectrogram, in milliseconds.
         Used to validate output of spectrogram function,
         and in creating filename for spectrogram (as a form of metadata).
     thresh: float, optional
@@ -128,7 +128,7 @@ class SpectParams:
     fft_size: int
     step_size: int
     transform_type: str
-    timebin_dur: float
+    frame_dur: float
     freq_cutoffs: list[int] | None = None
     thresh: float | None = None
     spect_key: str = 's'
@@ -162,15 +162,15 @@ def audio_and_annot_to_inputs_and_targets(
         spect_params.transform_type,
         spect_params.freq_cutoffs,
     )
-    timebin_dur = np.diff(t).mean()
+    frame_dur = np.diff(t).mean()
     if not math.isclose(
-        timebin_dur,
-        spect_params.timebin_dur * 1e-3,
+        frame_dur,
+        spect_params.frame_dur * 1e-3,
         abs_tol=0.001,
     ):
         raise ValueError(
-            f"Expected spectrogram with timebis of duration {spect_params.timebin_dur * 1e-3} "
-            f"but got duration {timebin_dur} for audio path: {audio_path}"
+            f"Expected spectrogram with timebis of duration {spect_params.frame_dur * 1e-3} "
+            f"but got duration {frame_dur} for audio path: {audio_path}"
         )
     spect_dict = {
         spect_params.spect_key: s,
@@ -179,7 +179,7 @@ def audio_and_annot_to_inputs_and_targets(
     }
 
     frames_filename = get_frames_filename(
-        audio_path, spect_params.timebin_dur
+        audio_path, spect_params.frame_dur
     )
     frames_path = dst / frames_filename
     np.savez(frames_path, **spect_dict)
@@ -194,21 +194,21 @@ def audio_and_annot_to_inputs_and_targets(
         unlabeled_label=labelmap["unlabeled"],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     frame_labels_multi_path = dst / frame_labels_multi_filename
     np.save(frame_labels_multi_path, frame_labels_multi)
 
     frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
     frame_labels_binary_filename = get_binary_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
     boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
     boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     boundary_frame_labels_path = dst / boundary_frame_labels_filename
     np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -223,7 +223,7 @@ BF_SPECT_PARAMS = [
         step_size=64,
         freq_cutoffs=[500, 10000],
         transform_type='log_spect',
-        timebin_dur=2.0,
+        frame_dur=2.0,
     ),
     # time bin size = 0.001 s
     SpectParams(
@@ -231,7 +231,7 @@ BF_SPECT_PARAMS = [
         step_size=32,
         freq_cutoffs=[500, 10000],
         transform_type='log_spect',
-        timebin_dur=1.0,
+        frame_dur=1.0,
     ),
 ]
 
@@ -299,7 +299,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     dst: pathlib.Path,
     labelmap: dict,
     unit: str,
-    timebin_dur: float = 2.7,  # milliseconds
+    frame_dur: float = 2.7,  # milliseconds
 ):
     """Generate frames (spectrogram) and frame label / boundary detection vectors.
 
@@ -308,12 +308,12 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     """
     spect_dict = np.load(spect_npz_path)
 
-    timebin_dur_from_t = np.diff(spect_dict["t"]).mean() * 1000
-    if not math.isclose(timebin_dur_from_t, timebin_dur, abs_tol=0.002):
+    frame_dur_from_t = np.diff(spect_dict["t"]).mean() * 1000
+    if not math.isclose(frame_dur_from_t, frame_dur, abs_tol=0.002):
         raise ValueError(
-            f"Expected spectrogram with timebis of duration {timebin_dur} "
-            f"but got duration {timebin_dur_from_t * 1000} for audio path: {audio_path}. "
-            f"Difference ({abs((timebin_dur_from_t * 1000)) - 2.7})) greater than tolerance of 0.002"
+            f"Expected spectrogram with timebis of duration {frame_dur} "
+            f"but got duration {frame_dur_from_t * 1000} for audio path: {audio_path}. "
+            f"Difference ({abs((frame_dur_from_t * 1000)) - 2.7})) greater than tolerance of 0.002"
         )
     s = spect_dict["s"]
     f = np.squeeze(spect_dict["f"])
@@ -328,7 +328,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
     # we already confirmed in calling function that it exists
     audio_path = spect_npz_path.parent / spect_npz_path.name.replace('.npz', '')
     frames_filename = get_frames_filename(
-        audio_path, timebin_dur
+        audio_path, frame_dur
     )
     frames_path = dst / frames_filename
     np.savez(frames_path, **spect_dict_out)
@@ -343,21 +343,21 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
         unlabeled_label=labelmap["unlabeled"],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
-        audio_path, timebin_dur, unit
+        audio_path, frame_dur, unit
     )
     frame_labels_multi_path = dst / frame_labels_multi_filename
     np.save(frame_labels_multi_path, frame_labels_multi)
 
     frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
     frame_labels_binary_filename = get_binary_frame_labels_filename(
-        audio_path, timebin_dur, unit
+        audio_path, frame_dur, unit
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
     boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
     boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-        audio_path, timebin_dur, unit
+        audio_path, frame_dur, unit
     )
     boundary_frame_labels_path = dst / boundary_frame_labels_filename
     np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -369,7 +369,7 @@ CANARY_SPECT_PARAMS = [
         fft_size=512,
         step_size=45,
         transform_type='log_spect',
-        timebin_dur=1.0,
+        frame_dur=1.0,
     ),
 ]
 
@@ -414,7 +414,7 @@ def make_inputs_targets_canary_id(raw_data_dir, id_dir, labelmap, unit='syllable
         )
         todo = []
         # TODO: parallelize here and make frame labels / boundary vectors
-        # at the same time so we know we have the correct timebin duration
+        # at the same time so we know we have the correct frame duration
         # for the frames
         for wav_path, csv_path in zip(wav_paths, csv_paths):
             todo.append(
@@ -513,7 +513,7 @@ class JourjineEtAl2023SpectParams:
     num_freq_bins: int = 128
     fill_value: float = 0.5
     spec_max_val: int = 10
-    timebin_dur: float = 1.5
+    frame_dur: float = 1.5
     spect_key: str = 's'
     freqbins_key: str = 'f'
     timebins_key: str = 't'
@@ -549,15 +549,15 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
         fill_value=spect_params.fill_value,
         spec_max_val=spect_params.spec_max_val,
     )
-    timebin_dur = np.diff(t).mean()
+    frame_dur = np.diff(t).mean()
     if not math.isclose(
-        timebin_dur,
-        spect_params.timebin_dur * 1e-3,
+        frame_dur,
+        spect_params.frame_dur * 1e-3,
         abs_tol=0.001,
     ):
         raise ValueError(
-            f"Expected spectrogram with timebis of duration {spect_params.timebin_dur * 1e-3} "
-            f"but got duration {timebin_dur} for audio path: {audio_path}"
+            f"Expected spectrogram with timebis of duration {spect_params.frame_dur * 1e-3} "
+            f"but got duration {frame_dur} for audio path: {audio_path}"
         )
     spect_dict = {
         spect_params.spect_key: s,
@@ -566,7 +566,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     }
 
     frames_filename = get_frames_filename(
-        audio_path, spect_params.timebin_dur
+        audio_path, spect_params.frame_dur
     )
     frames_path = dst / frames_filename
     np.savez(frames_path, **spect_dict)
@@ -590,21 +590,21 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
             unlabeled_label=labelmap["unlabeled"],
         )
         frame_labels_multi_filename = get_multi_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         frame_labels_multi_path = dst / frame_labels_multi_filename
         np.save(frame_labels_multi_path, frame_labels_multi)
 
         frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
         frame_labels_binary_filename = get_binary_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, frame_labels_binary)
 
         boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
         boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         boundary_frame_labels_path = dst / boundary_frame_labels_filename
         np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -612,19 +612,19 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     else:  # no segments
         all_zeros_vector = np.zeros_like(t).astype(int)
         frame_labels_multi_filename = get_multi_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         frame_labels_multi_path = dst / frame_labels_multi_filename
         np.save(frame_labels_multi_path, all_zeros_vector)
 
         frame_labels_binary_filename = get_binary_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         frame_labels_binary_path = dst / frame_labels_binary_filename
         np.save(frame_labels_binary_path, all_zeros_vector)
 
         boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-            audio_path, spect_params.timebin_dur, unit
+            audio_path, spect_params.frame_dur, unit
         )
         boundary_frame_labels_path = dst / boundary_frame_labels_filename
         np.save(boundary_frame_labels_path, all_zeros_vector)
@@ -735,7 +735,7 @@ class VocSpectParams:
         size of window for Fast Fourier transform, number of time bins.
     hop_length : int
         step size for Fast Fourier transform.
-    timebin_dur : int
+    frame_dur : int
         Expected duration of timebins in spectrogram, in milliseconds.
         Used to validate output of spectrogram function,
         and in creating filename for spectrogram (as a form of metadata).
@@ -750,7 +750,7 @@ class VocSpectParams:
     """
     n_fft: int
     hop_length: int
-    timebin_dur: int
+    frame_dur: int
     spect_key: str = 's'
     freqbins_key: str = 'f'
     timebins_key: str = 't'
@@ -784,15 +784,15 @@ def audio_and_annot_to_inputs_and_targets_zf(
         spect_params.n_fft,
         spect_params.hop_length,
     )
-    timebin_dur = np.diff(spect.times).mean()
+    frame_dur = np.diff(spect.times).mean()
     if not math.isclose(
-        timebin_dur,
-        spect_params.timebin_dur * 1e-3,
+        frame_dur,
+        spect_params.frame_dur * 1e-3,
         abs_tol=0.001,
     ):
         raise ValueError(
-            f"Expected spectrogram with timebis of duration {spect_params.timebin_dur * 1e-3} "
-            f"but got duration {timebin_dur} for audio path: {audio_path}"
+            f"Expected spectrogram with timebis of duration {spect_params.frame_dur * 1e-3} "
+            f"but got duration {frame_dur} for audio path: {audio_path}"
         )
     spect_dict = {
         spect_params.spect_key: spect.data,
@@ -801,7 +801,7 @@ def audio_and_annot_to_inputs_and_targets_zf(
     }
 
     frames_filename = get_frames_filename(
-        audio_path, spect_params.timebin_dur
+        audio_path, spect_params.frame_dur
     )
     frames_path = dst / frames_filename
     np.savez(frames_path, **spect_dict)
@@ -816,21 +816,21 @@ def audio_and_annot_to_inputs_and_targets_zf(
         unlabeled_label=labelmap["unlabeled"],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     frame_labels_multi_path = dst / frame_labels_multi_filename
     np.save(frame_labels_multi_path, frame_labels_multi)
 
     frame_labels_binary = frame_labels_multi_to_binary(frame_labels_multi, labelmap)
     frame_labels_binary_filename = get_binary_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     frame_labels_binary_path = dst / frame_labels_binary_filename
     np.save(frame_labels_binary_path, frame_labels_binary)
 
     boundary_frame_labels = frame_labels_to_boundary_frame_labels(frame_labels_multi)
     boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-        audio_path, spect_params.timebin_dur, unit
+        audio_path, spect_params.frame_dur, unit
     )
     boundary_frame_labels_path = dst / boundary_frame_labels_filename
     np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -840,12 +840,12 @@ ZF_SPECT_PARAMS = [
     VocSpectParams(
         n_fft=64,
         hop_length=16,
-        timebin_dur=0.5, # ms!
+        frame_dur=0.5, # ms!
     ),
     VocSpectParams(
         n_fft=512,
         hop_length=32,
-        timebin_dur=1.0, # ms!
+        frame_dur=1.0, # ms!
     ),
 ]
 
@@ -964,7 +964,7 @@ class SpeechMFCCParams:
     hop_length_s: float = 0.01
     n_mels: int = 40
     n_mfcc: int = 13
-    timebin_dur: float = 10.  # ms
+    frame_dur: float = 10.  # ms
     add_dist_features: bool = False
     spect_key: str = 's'
     freqbins_key: str = 'f'
@@ -1014,15 +1014,15 @@ def audio_and_annot_to_inputs_and_targets_speech(
         add_dist_features=mfcc_params.add_dist_features,
     )
 
-    timebin_dur = np.diff(times).mean()
+    frame_dur = np.diff(times).mean()
     if not math.isclose(
-        timebin_dur,
-        mfcc_params.timebin_dur * 1e-3,
+        frame_dur,
+        mfcc_params.frame_dur * 1e-3,
         abs_tol=0.001,
     ):
         raise ValueError(
-            f"Expected MFCC frames with timebins of duration {mfcc_params.timebin_dur * 1e-3} "
-            f"but got duration {timebin_dur} for audio path: {audio_path}"
+            f"Expected MFCC frames with timebins of duration {mfcc_params.frame_dur * 1e-3} "
+            f"but got duration {frame_dur} for audio path: {audio_path}"
         )
     frames_dict = {
         mfcc_params.spect_key: frames,
@@ -1030,7 +1030,7 @@ def audio_and_annot_to_inputs_and_targets_speech(
     }
 
     frames_filename = get_frames_filename(
-        audio_path, mfcc_params.timebin_dur
+        audio_path, mfcc_params.frame_dur
     )
     frames_path = dst / frames_filename
     np.savez(frames_path, **frames_dict)
@@ -1050,7 +1050,7 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 unlabeled_label=labelmap["unlabeled"],
             )
             frame_labels_multi_filename = get_multi_frame_labels_filename(
-                audio_path, mfcc_params.timebin_dur, unit
+                audio_path, mfcc_params.frame_dur, unit
             )
             frame_labels_multi_path = dst / frame_labels_multi_filename
             np.save(frame_labels_multi_path, frame_labels_multi)
@@ -1068,7 +1068,7 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 times
             )
             boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-                audio_path, mfcc_params.timebin_dur, unit
+                audio_path, mfcc_params.frame_dur, unit
             )
             boundary_frame_labels_path = dst / boundary_frame_labels_filename
             np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -1091,7 +1091,7 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 times
             )
             boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-                audio_path, mfcc_params.timebin_dur, unit
+                audio_path, mfcc_params.frame_dur, unit
             )
             boundary_frame_labels_path = dst / boundary_frame_labels_filename
             np.save(boundary_frame_labels_path, boundary_frame_labels)
@@ -1101,7 +1101,7 @@ HUMAN_SPEECH_MFCC_PARAMS = [
     # (default) time bin dur of 10 ms
     SpeechMFCCParams(),
     # timebin dur of 1 ms
-    SpeechMFCCParams(hop_length_s=0.001, timebin_dur=1.),
+    SpeechMFCCParams(hop_length_s=0.001, frame_dur=1.),
 ]
 
 
