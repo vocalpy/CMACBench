@@ -47,7 +47,7 @@ def frame_labels_to_boundary_frame_labels(frame_labels):
 
 
 def frame_labels_multi_to_binary(
-    frame_labels, labelmap, bg_class_name: str = 'unlabeled'
+    frame_labels, labelmap, bg_class_name: str = vak.common.constants.DEFAULT_BACKGROUND_LABEL
 ):
     """Converts vector of frame labels with multiple classes
     to a vector for binary classification."""
@@ -191,7 +191,7 @@ def audio_and_annot_to_inputs_and_targets(
         annot.onsets_s,
         annot.offsets_s,
         t,
-        unlabeled_label=labelmap["unlabeled"],
+        background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
         audio_path, spect_params.frame_dur, unit
@@ -340,7 +340,7 @@ def spect_npz_and_annot_to_inputs_and_targets_canary(
         annot.onsets_s,
         annot.offsets_s,
         t,
-        unlabeled_label=labelmap["unlabeled"],
+        background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
         audio_path, frame_dur, unit
@@ -587,7 +587,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
             annot.onsets_s,
             annot.offsets_s,
             t,
-            unlabeled_label=labelmap["unlabeled"],
+            background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
         )
         frame_labels_multi_filename = get_multi_frame_labels_filename(
             audio_path, spect_params.frame_dur, unit
@@ -813,7 +813,7 @@ def audio_and_annot_to_inputs_and_targets_zf(
         annot.onsets_s,
         annot.offsets_s,
         spect.times,
-        unlabeled_label=labelmap["unlabeled"],
+        background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
     )
     frame_labels_multi_filename = get_multi_frame_labels_filename(
         audio_path, spect_params.frame_dur, unit
@@ -1047,7 +1047,7 @@ def audio_and_annot_to_inputs_and_targets_speech(
                 annot.onsets_s,
                 annot.offsets_s,
                 times,
-                unlabeled_label=labelmap["unlabeled"],
+                background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
             )
             frame_labels_multi_filename = get_multi_frame_labels_filename(
                 audio_path, mfcc_params.frame_dur, unit
