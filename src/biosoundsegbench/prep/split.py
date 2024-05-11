@@ -820,7 +820,7 @@ def make_splits_timit(
                 f"Split '{split}' has duration: {replicate_1ms_df[replicate_1ms_df.split == split].duration.sum()}"
             )
 
-        replicate_1ms_csv_filename = f"Human-Speech.frame-dur-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_1ms_csv_filename = f"Human-Speech.phoneme.frame-dur-1.0-ms.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
         replicate_1ms_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_1ms_csv_filename
         logger.info(
             f"Saving replicate with 1.0 ms timebins as: {replicate_1ms_csv_path}"
@@ -1068,15 +1068,13 @@ class TrainingReplicateMetadata:
 
 
 def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingReplicateMetadata:
+    name = splits_json_path.name
     try:
-        # Human-Speech doesn't have ID or data source in filename
-        # so it will raise a ValueError
-        name = splits_json_path.name
         (biosound_group,
+        unit,
         id_,
         frame_dur_1st_half,
         frame_dur_2nd_half,
-        unit,
         data_source,
         train_dur_1st_half,
         train_dur_2nd_half,
@@ -1084,11 +1082,12 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
         _, _
         ) = name.split('.')
     except ValueError:
-        name = splits_json_path.name
+        # Human-Speech doesn't have ID or data source in filename
+        # so it will raise a ValueError
         (biosound_group,
+        unit,
         frame_dur_1st_half,
         frame_dur_2nd_half,
-        unit,
         train_dur_1st_half,
         train_dur_2nd_half,
         replicate_num,
