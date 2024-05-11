@@ -142,7 +142,7 @@ def split_wav_paths_to_df(
                     f"`annot_path`: {annot_path}"
                 )
 
-            frames_path = parent / (name + f".timebin-{frame_dur_str}-ms.frames.npz")
+            frames_path = parent / (name + f".frame-dur-{frame_dur_str}-ms.frames.npz")
             if not frames_path.exists():
                 raise FileNotFoundError(
                     f"Did not find `frames_path` for `audio_path`.\n"
@@ -168,7 +168,7 @@ def split_wav_paths_to_df(
 
             if "multi_frame_labels_path" in target_columns:
                 multi_frame_labels_path = parent / (
-                    name + f".timebin-{frame_dur_str}-ms.{unit}.multi-frame-labels.npy"
+                    name + f".frame-dur-{frame_dur_str}-ms.{unit}.multi-frame-labels.npy"
                 )
                 if not multi_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -182,7 +182,7 @@ def split_wav_paths_to_df(
 
             if "binary_frame_labels_path" in target_columns:
                 binary_frame_labels_path = parent / (
-                    name + f".timebin-{frame_dur_str}-ms.{unit}.binary-frame-labels.npy"
+                    name + f".frame-dur-{frame_dur_str}-ms.{unit}.binary-frame-labels.npy"
                 )
                 if not binary_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -196,7 +196,7 @@ def split_wav_paths_to_df(
 
             if "boundary_frame_labels_path" in target_columns:
                 boundary_frame_labels_path = parent / (
-                    name + f".timebin-{frame_dur_str}-ms.{unit}.boundary-frame-labels.npy"
+                    name + f".frame-dur-{frame_dur_str}-ms.{unit}.boundary-frame-labels.npy"
                 )
                 if not boundary_frame_labels_path.exists():
                     raise FileNotFoundError(
@@ -284,7 +284,7 @@ def get_replicate_csv_filename_id_data_only(
     The 'train' split will contain a subset of the training data in the total splits.
     The validation and test set will be the same as for other training replicates.
     """
-    return f"{biosound_group}.id-{id}.timebin-{frame_dur_str}-ms.{unit}.id-data-only.train-dur-{train_dur:.1f}.replicate-{replicate_num}.splits.csv"
+    return f"{biosound_group}.{unit}.id-{id}.frame-dur-{frame_dur_str}-ms.id-data-only.train-dur-{train_dur:.1f}.replicate-{replicate_num}.splits.csv"
 
 
 def get_replicate_csv_filename_leave_one_id_out(
@@ -297,7 +297,7 @@ def get_replicate_csv_filename_leave_one_id_out(
     The 'train' split will contain a subset of the training data in the total splits.
     The validation and test set will be the same as for other training replicates.
     """
-    return f"{biosound_group}.id-{id}.timebin-{frame_dur_str}-ms.{unit}.leave-one-id-out.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
+    return f"{biosound_group}.{unit}.id-{id}.frame-dur-{frame_dur_str}-ms.leave-one-id-out.train-dur-{train_dur}.replicate-{replicate_num}.splits.csv"
 
 
 BIOSOUND_GROUP_DIR_MAP = {
@@ -760,7 +760,7 @@ def make_splits_timit(
             f"Split '{split}' has duration: {splits_df[splits_df.split == split].duration.sum()}"
         )
 
-    split_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.splits.csv"
+    split_csv_filename = f"Human-Speech.phoneme.frame-dur-10.0-ms.splits.csv"
     split_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / split_csv_filename
     if not dry_run:
         splits_df.to_csv(split_csv_path, index=False)
@@ -782,7 +782,7 @@ def make_splits_timit(
                 f"Split '{split}' has duration: {replicate_df[replicate_df.split == split].duration.sum()}"
             )
 
-        replicate_csv_filename = f"Human-Speech.timebin-10.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_csv_filename = f"Human-Speech.phoneme.frame-dur-10.0-ms.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
         replicate_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_csv_filename
         logger.info(
             f"Saving replicate as: {replicate_csv_path}"
@@ -820,7 +820,7 @@ def make_splits_timit(
                 f"Split '{split}' has duration: {replicate_1ms_df[replicate_1ms_df.split == split].duration.sum()}"
             )
 
-        replicate_1ms_csv_filename = f"Human-Speech.timebin-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_1ms_csv_filename = f"Human-Speech.frame-dur-1.0-ms.phoneme.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
         replicate_1ms_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_1ms_csv_filename
         logger.info(
             f"Saving replicate with 1.0 ms timebins as: {replicate_1ms_csv_path}"
@@ -844,7 +844,7 @@ def make_splits_timit(
                 f"Split '{split}' has duration: {replicate_word_df[replicate_word_df.split == split].duration.sum()}"
             )
 
-        replicate_word_csv_filename = f"Human-Speech.timebin-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
+        replicate_word_csv_filename = f"Human-Speech.frame-dur-10.0-ms.word.train-dur-{train_subset_dur}.replicate-{replicate_num}.splits.csv"
         replicate_word_csv_path = constants.INPUTS_TARGETS_PATHS_CSVS_DIR / replicate_word_csv_filename
         logger.info(
             f"Saving replicate with word-level annotations as: {replicate_word_csv_path}"
