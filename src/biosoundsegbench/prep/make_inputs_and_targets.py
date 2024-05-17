@@ -635,21 +635,27 @@ JOURJINE_ET_AL_2023_SPECT_PARAMS = [
 ]
 
 
-JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV = constants.JOURJINE_ET_AL_2023_DATA / "processed_data" / "figure_1" / "acoustic_features" / "all_noise_floors.csv"
-JOURJINE_ET_AL_2023_NOISE_FLOORS = pd.read_csv(JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV)
-# replace DataFrame with a dict mapping file name to noise floor,
-# so we can just do a lookup table instead of dealing with pandas
-JOURJINE_ET_AL_2023_NOISE_FLOORS = {
-    source_file: noise_floor
-    for source_file, noise_floor in zip(
-        JOURJINE_ET_AL_2023_NOISE_FLOORS.source_file.values,
-        JOURJINE_ET_AL_2023_NOISE_FLOORS.noise_floor.values
-    )
-}
-
-
 def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dry_run=True):
     """Make inputs and targets for one ID from Jourjine et al. 2023 dataset"""
+    JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV = constants.JOURJINE_ET_AL_2023_DATA / "processed_data" / "figure_1" / "acoustic_features" / "all_noise_floors.csv"
+    try:
+        JOURJINE_ET_AL_2023_NOISE_FLOORS = pd.read_csv(JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "File missing from raw directory that is needed for the function "
+            "`biosoundsegbench.prep.make_inputs_and_targets.make_inputs_targets_jourjine_et_al_2023_id`. "
+            f"The file is:\n{JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV}."
+            "Please obtain this file from the source dataset: https://datadryad.org/stash/dataset/doi:10.5061/dryad.g79cnp5ts"
+        )
+    # replace DataFrame with a dict mapping file name to noise floor,
+    # so we can just do a lookup table instead of dealing with pandas
+    JOURJINE_ET_AL_2023_NOISE_FLOORS = {
+        source_file: noise_floor
+        for source_file, noise_floor in zip(
+            JOURJINE_ET_AL_2023_NOISE_FLOORS.source_file.values,
+            JOURJINE_ET_AL_2023_NOISE_FLOORS.noise_floor.values
+        )
+    }
     wav_paths = voc.paths.from_dir(id_dir, '.wav')
     csv_paths = voc.paths.from_dir(id_dir, f'.{unit}.csv')
 
@@ -663,17 +669,9 @@ def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dr
             wav_name = wav_path.name
             clip_ind = wav_name.find('clip-')
             source_file = wav_name[:clip_ind] + "wav"
+
             noise_floor = JOURJINE_ET_AL_2023_NOISE_FLOORS[source_file]
-            # if not dry_run:
-            #     audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
-            #         audio_path=wav_path,
-            #         annot_path=csv_path,
-            #         spect_params=spect_params,
-            #         noise_floor=noise_floor,
-            #         dst=id_dir,
-            #         labelmap=labelmap,
-            #         unit=unit,
-            #     )
+
             todo.append(
                 dask.delayed(audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023)(
                     audio_path=wav_path,
