@@ -15,7 +15,7 @@ with your operating system package manager, or using conda.)
 
 ### Set up environment and install code
 
-Experiments were run on [Pop!_OS 22.04](https://pop.system76.com/).
+Code is developed on [Pop!_OS 22.04](https://pop.system76.com/).
 It will be easiest to set up in a similar Linux environment (e.g., Ubuntu).
 
 1. Clone this repository with git:
