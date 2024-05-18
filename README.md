@@ -1,6 +1,6 @@
-# Nicholson-Cohen-2024-Bio-Sound-Seg-Bench
+# BioSoundSegBench
 
-Code for paper on benchmarking methods for segmenting speech and animal sounds
+Code for the BioSoundSegBench dataset
 
 ## Set-up
 
@@ -21,8 +21,8 @@ It will be easiest to set up in a similar Linux environment (e.g., Ubuntu).
 1. Clone this repository with git:
 
 ```
-git clone git@github.com:vocalpy/Nicholson-Cohen-SfN-2023-poster.git
-cd Nicholson-Cohen-SfN-2023-poster
+git clone git@github.com:vocalpy/BioSoundSegBench.git
+cd BioSoundSegBench
 ```
 
 2. Set up the virtual environment with the code installed into it:
