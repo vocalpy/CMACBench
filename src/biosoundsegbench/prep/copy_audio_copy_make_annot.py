@@ -306,6 +306,12 @@ def make_clips_from_jourjine_et_al_2023(
     boundary_pad = 0.003,  # seconds
     min_segs_for_random_clips: int = 750,
 ):
+    """Make "clips" from Jourjine et al. 2023 dataset.
+
+    For a "sample" in the dataset (one audio file from one ID),
+    we generate sone number of clips determined by the `clip_dur`
+    attribute of the ``sample``.
+    """
     simple_seq = crowsetta.formats.seq.SimpleSeq(
         onsets_s=sample.this_file_segs_df.start_seconds.values,
         offsets_s=sample.this_file_segs_df.stop_seconds.values,
@@ -314,6 +320,7 @@ def make_clips_from_jourjine_et_al_2023(
     )
     sound = voc.Audio.read(sample.wav_path)
     dur = sound.data.shape[-1] / sound.samplerate
+    # find times to clip, using the specified clip duration
     clip_times = np.arange(
         0., dur, sample.clip_dur
     )
@@ -344,7 +351,7 @@ def make_clips_from_jourjine_et_al_2023(
             # # that has a duration greater than some threshold.
             # # the problem with this alternative is it assumes the existence of multiple silent gaps
             # # which isn't always true. Extreme case being when there's only one detected segment
-            # # in the whole recording. Leaving this cpmmented out in case we need it later
+            # # in the whole recording. Leaving this commented out in case we need it later
             # si_start_times = simple_seq.offsets_s[:-1]
             # si_stop_times = simple_seq.onsets_s[1:]
             # si_durs = si_stop_times - si_start_times
@@ -371,7 +378,8 @@ def make_clips_from_jourjine_et_al_2023(
     new_clip_times = np.array(new_clip_times)
 
     if len(sample.this_file_segs_df) < min_segs_for_random_clips:
-        # not enough segments to take random clips, sort by number of segments per clip
+        # not enough segments in this file to take random clips,
+        # so sort clips by number of segments per clip
         clip_start_times = new_clip_times[:-1]
         clip_stop_times = new_clip_times[1:]
         n_segs_per_clip = []
