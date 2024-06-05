@@ -318,7 +318,7 @@ def make_clips_from_jourjine_et_al_2023(
         labels=np.array(['v'] * sample.this_file_segs_df.stop_seconds.values.shape[-1]),
         annot_path='dummy',
     )
-    sound = voc.Audio.read(sample.wav_path)
+    sound = voc.Sound.read(sample.wav_path)
     dur = sound.data.shape[-1] / sound.samplerate
     # find times to clip, using the specified clip duration
     clip_times = np.arange(
@@ -421,7 +421,7 @@ def make_clips_from_jourjine_et_al_2023(
         )
         start_ind = int(start * sound.samplerate)
         stop_ind = int(stop * sound.samplerate)
-        clip_sound = voc.Audio(
+        clip_sound = voc.Sound(
             data=sound.data[..., start_ind:stop_ind + 1],
             samplerate=sound.samplerate,
         )
