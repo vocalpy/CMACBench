@@ -463,7 +463,7 @@ def clip_wav_generate_annot_jourjine_et_al_2023(max_clips_per_species=300,
 
     For this dataset, we sub-sample the audio files,
     which are almost all 10 minutes long.
-    We grab 5 10-second clips at random from each audio file,
+    We grab 10 10-second clips at random from each audio file,
     making sure to clip within silent intervals
     between vocalizations that are longer than a
     minimum duration (0.3 s).
