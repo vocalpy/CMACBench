@@ -506,7 +506,7 @@ class JourjineEtAl2023SpectParams:
     """Dataclass that represents spectrogram parameters
     used with :func:`make_spectrogram_jourjine_et_al_2023`
     """
-    npserseg: int = 512
+    nperseg: int = 512
     noverlap: int = 128
     min_freq: int = 5000
     max_freq: int = 125000
@@ -541,7 +541,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
         data=sound.data,
         samplerate=sound.samplerate,
         noise_floor=noise_floor,
-        nperseg=spect_params.npserseg,
+        nperseg=spect_params.nperseg,
         noverlap=spect_params.noverlap,
         min_freq=spect_params.min_freq,
         max_freq=spect_params.max_freq,
