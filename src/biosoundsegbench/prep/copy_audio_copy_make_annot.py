@@ -322,9 +322,11 @@ def make_clips_from_jourjine_et_al_2023(
     dur = sound.data.shape[-1] / sound.samplerate
     # find times to clip, using the specified clip duration
     clip_times = np.arange(
-        0., dur, sample.clip_dur
+        0., sound.duration, sample.clip_dur
     )
-    new_clip_times = []
+
+    # we fix the clip times so they do not occur within a segment
+    clip_times_not_in_segments = []
     for clip_time in clip_times:
         in_segment = np.logical_and(
             # we "pad" the boundaries here and use lte/gte
@@ -347,41 +349,51 @@ def make_clips_from_jourjine_et_al_2023(
             else:
                 prev_silent_gap_onset = 0.
             new_clip_time = prev_silent_gap_onset + (prev_silent_gap_offset - prev_silent_gap_onset) / 2
-            # # an alternative would be to move the clip time to the nearest silent gap
-            # # that has a duration greater than some threshold.
-            # # the problem with this alternative is it assumes the existence of multiple silent gaps
-            # # which isn't always true. Extreme case being when there's only one detected segment
-            # # in the whole recording. Leaving this commented out in case we need it later
-            # si_start_times = simple_seq.offsets_s[:-1]
-            # si_stop_times = simple_seq.onsets_s[1:]
-            # si_durs = si_stop_times - si_start_times
-            # dists_to_si = np.abs(si_start_times - clip_time)
-            # dists_sort_inds = np.argsort(dists_to_si)
-            # si_durs_sorted = si_durs[dists_sort_inds]
-            # durs_gt_thresh = si_durs_sorted > THRESH
-            # si_nearest_gt_thresh = dists_sort_inds[durs_gt_thresh]
-            # # the closet silent interval that we want to use is
-            # # the first index in indices of silent intervals,
-            # # sorted by distance to clip time,
-            # # that is greater than the threshold silent interval duration
-            # si_to_use_ind = si_nearest_gt_thresh[0]
-            # new_clip_times.append(
-            #     # clip halfway through the silent interval
-            #     si_start_times[si_to_use_ind] + si_durs[si_to_use_ind] / 2
-            # )
-
-            new_clip_times.append(new_clip_time)
+            clip_times_not_in_segments.append(new_clip_time)
         else:
             # no need to move clip time
-            new_clip_times.append(clip_time)
-    new_clip_times.append(dur)
-    new_clip_times = np.array(new_clip_times)
+            clip_times_not_in_segments.append(clip_time)
+    clip_times_not_in_segments.append(sound.duration)
+    clip_times_not_in_segments = np.array(clip_times_not_in_segments)
+
+    # we do some careful book-keeping to make sure that we only start clips
+    # exactly where frames would start for the STFT used to compute
+    # the signal energy that we then segment.
+    # The goal is to avoid changing the result of the segmenting algorithm
+    # because of where we clip the audio
+    hop_length = voc.segment.JOURJINEETAL2023.nperseg - voc.segment.JOURJINEETAL2023.noverlap
+    # we say that it is valid to clip at samples where a frame would start for the STFT;
+    # again, the goal is to avoid shifting the frames in such a way that we change the segmentation
+    valid_clip_sample_inds = np.arange(0, sound.data.shape[-1], hop_length)
+    valid_clip_times = valid_clip_sample_inds / sound.samplerate
+
+    # finally we go through clip times adjusted to not be in a segment,
+    # and for each we find the nearest valid clip time
+    # and the corresponding index
+    # Because the hop length <<< number of samples in the audio
+    # this is often a very small adjustment, ~a few milliseconds at most.
+    # We use `clip_inds_to_use` to clip the sound itself,
+    # and `clip_times_to_use` to make the new annotations
+    clip_inds_to_use = []
+    clip_times_to_use = []
+    for clip_time in clip_times_not_in_segments:
+        ind_of_nearest_valid_clip_time = np.argmin(np.abs(valid_clip_times - clip_time))
+
+        clip_inds_to_use.append(
+            valid_clip_sample_inds[ind_of_nearest_valid_clip_time]
+        )
+        clip_times_to_use.append(
+            valid_clip_times[ind_of_nearest_valid_clip_time]
+        )
+
+    clip_inds_to_use = np.array(clip_inds_to_use)
+    clip_times_to_use = np.array(clip_times_to_use)
 
     if len(sample.this_file_segs_df) < min_segs_for_random_clips:
         # not enough segments in this file to take random clips,
         # so sort clips by number of segments per clip
-        clip_start_times = new_clip_times[:-1]
-        clip_stop_times = new_clip_times[1:]
+        clip_start_times = clip_times_to_use[:-1]
+        clip_stop_times = clip_times_to_use[1:]
         n_segs_per_clip = []
         for clip_ind, (start, stop) in enumerate(zip(clip_start_times, clip_stop_times)):
             n_segs_per_clip.append(
@@ -397,52 +409,69 @@ def make_clips_from_jourjine_et_al_2023(
         # but we still take clips with zero segments if there are any in the clips we get
         # using `n_clips_per_file`
         clip_inds = np.array(
-            [clip_ind_n_segs_tup[0] for clip_ind_n_segs_tup in clip_inds_sorted_by_n_segs[:sample.n_clips_per_file]]
+            [clip_ind_n_segs_tup[0]
+            for clip_ind_n_segs_tup in clip_inds_sorted_by_n_segs[:sample.n_clips_per_file]
+            ]
         )
     else:
         clip_inds = np.sort(
-            RNG.integers(new_clip_times.size - 1, size=sample.n_clips_per_file)
+            # we use `choice` with arange to guarantee we sample without replacement
+            # (as opposed to integers)
+            RNG.choice(np.arange(clip_times_to_use.size - 1), size=sample.n_clips_per_file)
         )
 
-    clip_starts = new_clip_times[:-1][clip_inds]
-    clip_stops = new_clip_times[1:][clip_inds]
+    clip_start_times = clip_times_to_use[:-1][clip_inds]
+    clip_stop_times = clip_times_to_use[1:][clip_inds]
+    clip_start_inds = clip_inds_to_use[:-1][clip_inds]
+    clip_stop_inds = clip_inds_to_use[1:][clip_inds]
+
+    if not len(set(
+        [len(clip_start_times), len(clip_stop_times), len(clip_start_inds), len(clip_stop_inds)]
+    )) == 1:
+        raise ValueError(
+            "Clip times and inds arrays did not all have same length. "
+            f"len(clip_start_times)={len(clip_start_times)}, "
+            f"len(clip_stop_times)={len(clip_stop_times)}, "
+            f"len(clip_start_inds)={len(clip_start_inds)}, "
+            f"len(clip_stop_inds)={len(clip_stop_inds)}."
+        )
 
     records = []
-    for clip_num, (start, stop) in enumerate(
-        zip(clip_starts, clip_stops)
+    for clip_num, (start_time, stop_time, start_ind, stop_ind) in enumerate(
+        zip(clip_start_times, clip_stop_times, clip_start_inds, clip_stop_inds)
     ):
         records.append(
             {
                 'source_file': sample.source_file,
                 'clip_num': clip_num,
-                'start_time': start,
-                'stop_time': stop,
+                'start_time': start_time,
+                'stop_time': stop_time,
+                'start_ind': start_ind,
+                'stop_ind': stop_ind,
             }
         )
-        start_ind = int(start * sound.samplerate)
-        stop_ind = int(stop * sound.samplerate)
         clip_sound = voc.Sound(
             data=sound.data[..., start_ind:stop_ind + 1],
             samplerate=sound.samplerate,
         )
         clip_wav_path = sample.species_id_dst / f"{sample.wav_path.stem}.clip-{clip_num}.wav"
         clip_sound.write(clip_wav_path)
-        clip_onsets_s = simple_seq.onsets_s[
-            np.logical_and(
-                simple_seq.onsets_s > start,
-                simple_seq.onsets_s < stop,
-            )
-        ] - start
-        clip_offsets_s = simple_seq.offsets_s[
-            np.logical_and(
-                simple_seq.offsets_s > start,
-                simple_seq.offsets_s < stop,
-            )
-        ] - start
+
+        # N.B.: we *re-segment* because in spite of careful book-keeping above,
+        # the ava segmentation algorithm can give us slightly different segemnt boundaries
+        # for these clips, relative to the boundaries we would get if we segmented
+        # the entire sound file.
+        # So our ground truth becomes the re-segmented clip.
+        # This is in keeping with the idea that Jourjine et al. 2023 apply the segmenting
+        # algorithm *without* doing any further manual clean-up
+        clip_segments = voc.segment.ava(
+            clip_sound,
+            **voc.segment.JOURJINEETAL2023
+        )
         clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
-            onsets_s=clip_onsets_s,
-            offsets_s=clip_offsets_s,
-            labels=np.array([sample.segment_label] * clip_offsets_s.size),
+            onsets_s=clip_segments.start_times,
+            offsets_s=clip_segments.stop_times,
+            labels=np.array([sample.segment_label] * clip_segments.start_times.size),
             annot_path='dummy',
         )
         clip_csv_path = clip_wav_path.parent / (
