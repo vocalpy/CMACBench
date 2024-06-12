@@ -25,7 +25,7 @@ def get_durs_from_wav_paths(wav_paths: list[pathlib.Path]):
     given a list of paths to the wav files"""
     durs = []
     for wav_path in wav_paths:
-        sound = voc.Audio.read(wav_path)
+        sound = voc.Sound.read(wav_path)
         durs.append(
             sound.data.shape[-1] / sound.samplerate
         )
@@ -128,7 +128,7 @@ def split_wav_paths_to_df(
     records = []
     for split, audio_paths in split_wav_paths.items():
         for audio_path in audio_paths:
-            sound = voc.Audio.read(audio_path)
+            sound = voc.Sound.read(audio_path)
             duration = sound.data.shape[-1] / sound.samplerate
 
             parent = audio_path.parent
@@ -1218,5 +1218,14 @@ def make_splits_all(
             metadata_for_json.append(
                 dataclasses.asdict(metadata)
             )
-    with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('w') as fp:
-        json.dump(metadata_for_json, fp, indent=4)
+    if not constants.TRAINING_REPLICATE_METADATA_JSON_PATH.exists():
+        with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('w') as fp:
+            json.dump(metadata_for_json, fp, indent=4)
+    else:  # if the json __does__ already exist
+        # This is a hack to avoid writing over existing splits.
+        # We load the existing splits, append any new splits, and then dump again.
+        with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('r') as fp:
+            metadata_loaded = json.load(fp)
+        metadata_loaded.extend(metadata_for_json)
+        with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('w') as fp:
+            json.dump(metadata_loaded, fp, indent=4)
