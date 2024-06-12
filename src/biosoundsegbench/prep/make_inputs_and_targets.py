@@ -151,7 +151,7 @@ def audio_and_annot_to_inputs_and_targets(
     with `dask.delayed`.
     It is used with Bengalese finch song, canary song, and zebra finch song.
     """
-    sound = voc.Audio.read(audio_path)
+    sound = voc.Sound.read(audio_path)
 
     s, f, t = spectrogram(
         sound.data,
@@ -535,7 +535,7 @@ def audio_and_annot_to_inputs_and_targets_jourjine_et_al_2023(
     with `dask.delayed`.
     It is used with mouse pup call data from Jourjine et al 2023.
     """
-    sound = voc.Audio.read(audio_path)
+    sound = voc.Sound.read(audio_path)
 
     s, f, t = make_spectrogram_jourjine_et_al_2023(
         data=sound.data,
@@ -775,7 +775,7 @@ def audio_and_annot_to_inputs_and_targets_zf(
     with `dask.delayed`.
     It is used with zebra finch song.
     """
-    sound = voc.Audio.read(audio_path)
+    sound = voc.Sound.read(audio_path)
 
     spect = voc.spectrogram(
         sound,
