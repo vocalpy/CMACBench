@@ -14,5 +14,5 @@ dependencies = [
     "jupyterlab==4.0.1",
     "seaborn==0.12.2",
     "vak==1.0.0a3",
-    "vocalpy==0.8.2",
+    "vocalpy==0.9.3",
 ]
