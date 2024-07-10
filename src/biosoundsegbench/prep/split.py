@@ -68,7 +68,7 @@ def get_split_wav_paths(
     These wav paths can then be matched with inputs and targets as required
     for training different models.
 
-    Uses :func:`vak.prep.split.split.train_tset_dur_split_inds`."""
+    Uses :func:`vak.prep.split.split.train_test_dur_split_inds`."""
     wav_paths = voc.paths.from_dir(data_dir, 'wav')
     csv_paths = voc.paths.from_dir(data_dir, f".{unit}.csv")
     durs = get_durs_from_wav_paths(wav_paths)
@@ -320,7 +320,12 @@ def get_splits_df_and_replicate_dfs_per_id(
     target_columns=TARGET_COLUMNS,
     use_id_all_for_labelset: bool = False,
     dry_run=True,
-):
+) -> tuple[dict, dict, list]:
+    """Get dataframes of dataset splits and training replicates for each ID in a biosound group
+
+    Returns two dicts, each mapping IDs to DataFrames, 
+    and a list of paths to csv files representing training replicates.
+    """
     group_dir = BIOSOUND_GROUP_DIR_MAP[biosound_group]
     id_dirs = [
         subdir
@@ -1008,7 +1013,7 @@ def save_vecs_and_make_json_from_csv_paths(
         ) = sample_vecs_and_splits_df_from_splits_csv_path(
             splits_csv_path
         )
-        splits_df_out.to_csv(splits_csv_path)
+        splits_df_out.to_csv(splits_csv_path, index=False)
 
         splits_path_json_dict['sample_id_vec_path'] = {}
         for split, sample_id_vec in split_sample_id_vec_map.items():
