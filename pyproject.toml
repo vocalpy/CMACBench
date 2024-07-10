@@ -13,6 +13,6 @@ dependencies = [
     "pandas==2.0.2",
     "jupyterlab==4.0.1",
     "seaborn==0.12.2",
-    "vak==1.0.0a3",
+    "vak==1.0.0",
     "vocalpy==0.9.3",
 ]
