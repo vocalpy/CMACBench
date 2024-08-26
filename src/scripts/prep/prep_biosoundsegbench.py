@@ -6,7 +6,7 @@ import biosoundsegbench
 
 # ---- typehint
 Stage = Literal[
-    "all", "mkdirs", "copy", "make"
+    "all", "clean", "mkdirs", "copy", "labels", "qc", "make", "split"
 ]
 
 
