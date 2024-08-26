@@ -245,6 +245,13 @@ def get_df_with_train_subset(
         subset_dfs.append(
             df_train.iloc[sorted(train_inds), :].reset_index(drop=True)
         )
+    # filter to make sure duration is >= target duration
+    # to deal with https://github.com/vocalpy/vak/issues/771
+    subset_dfs = [
+        subset_df
+        for subset_df in subset_dfs
+        if subset_df.duration.sum() >= train_subset_dur
+    ]
     subset_durs = np.array([df.duration.sum() for df in subset_dfs])
     ind_of_df_with_dur_closest_to_target = np.argmin([subset_dur - train_subset_dur for subset_dur in subset_durs])
     logger.info(
