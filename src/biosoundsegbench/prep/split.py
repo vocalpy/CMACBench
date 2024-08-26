@@ -944,6 +944,10 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
             f"Processing split: {split}"
         )
         split_df = splits_df[splits_df.split == split].copy()
+
+        # we first sort the split so that labels that appear less frequently appear first;
+        # this makes it more likely that we can clip to the target duration, by removing 
+        # timebins at the end of the dataset, without losing the least frequent labels
         csv_paths = [
             constants.DATASET_ROOT / csv_path
             for csv_path in split_df.annot_path.values
