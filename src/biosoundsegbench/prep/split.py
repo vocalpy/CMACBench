@@ -928,6 +928,9 @@ def argsort_by_label_freq(
 def sample_vecs_and_splits_df_from_splits_csv_path(
         splits_csv_path: pathlib.Path
         ) -> pd.DataFrame:
+    """Given path to a csv files representing dataset splits,
+    use the paths to spectrograms from the csv file to 
+    build the vectors that map from an index in a window dataset to an index in a spectrogram"""
     logger.info(
         f"Loading DataFrame from splits_csv_path: {splits_csv_path}"
     )
@@ -996,6 +999,12 @@ def save_vecs_and_make_json_from_csv_paths(
     splits_csv_paths: list[pathlib.Path],
     dry_run=True
 ):
+    """Given paths to csv files representing dataset splits,
+    use the paths to spectrograms from those csv files to 
+    build the vectors that map from an index in a window dataset to an index in a spectrogram,
+    and make a json metadata file for each csv file 
+    that includes a link to the csv file as well as links to the npy files containing the vectors.
+    """
     splits_path_json_paths = []
     for splits_csv_path in splits_csv_paths:
         logger.info(
