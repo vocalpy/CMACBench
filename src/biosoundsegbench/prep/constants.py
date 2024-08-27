@@ -88,6 +88,9 @@ TIMIT_NLTK_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-sample-from-NLTK" / "timit"
 # ------------ TIMIT full corpus
 TIMIT_FULL_CORPUS_RAW = SPEECH_RAW_DATA / "TIMIT-corpus-full" / "data"
 
+# ------------ Buckeye full corpus
+BUCKEYE_ROOT = SPEECH_RAW_DATA / "buckeye-corpus"
+
 
 # ---- root for dataset we are making,
 # and species-specific sub-dirs
