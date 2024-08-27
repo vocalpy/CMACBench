@@ -1065,6 +1065,17 @@ class MakeSplitsParams:
 # We use this ratio as a scaling factor when clipping the number of frames in datasets to all be the same size
 MOUSE_FRAMES_DUR_AUDIO_DUR_RATIO = 0.976
 
+# we have the same issue for Bengalese Finch song even though the ratio is closer to 1.
+# It's not a problem for canary song since weirdly the ratio is greater than 1 in that case
+# Clearly there's some effect of windowing / other computations in STFT I'm not understanding
+BF_FRAMES_DUR_AUDIO_DUR_RATIO = 0.998
+
+
+FRAMES_DUR_AUDIO_DUR_RATIO = {
+    "Mouse-Pup-Call": MOUSE_FRAMES_DUR_AUDIO_DUR_RATIO,
+    "Bengalese-Finch-Song": BF_FRAMES_DUR_AUDIO_DUR_RATIO
+}
+
 
 def sample_vecs_and_splits_df_from_splits_csv_path(
         splits_csv_path: pathlib.Path,
@@ -1203,9 +1214,10 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
                 ])
 
 
-            if split_params.biosound_group == "Mouse-Pup-Call":
-                # we scale target duration down with this ratio, see comment by constant declaration above
-                target_dur *= MOUSE_FRAMES_DUR_AUDIO_DUR_RATIO
+            if split_params.biosound_group in FRAMES_DUR_AUDIO_DUR_RATIO:
+                # we scale target duration down with this ratio, see comments by the constant declaration above
+                target_dur *= FRAMES_DUR_AUDIO_DUR_RATIO[split_params.biosound_group]
+
             sample_id_vec, inds_in_sample_vec = clip_to_target_dur(
                 sample_id_vec=sample_id_vec,
                 inds_in_sample_vec=inds_in_sample_vec,
