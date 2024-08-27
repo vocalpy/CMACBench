@@ -866,6 +866,16 @@ def clip_wav_generate_annot_buckeye(
                     for lbl in labels
                 ]
                 labels = np.array(labels)
+
+                # now, finally, remove any "background" segments
+                # as if they were unlabeled silence, etc.,
+                # to match how other datasets are annotated
+                not_background = labels != 'background'
+                start_times = start_times[not_background]
+                stop_times = stop_times[not_background]
+                labels = labels[not_background]
+
+                # after removing background we can save annotations
                 clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
                     onsets_s=start_times,
                     offsets_s=stop_times,
