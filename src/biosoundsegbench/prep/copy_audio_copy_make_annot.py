@@ -11,6 +11,7 @@ import shutil
 from collections import defaultdict
 from dataclasses import dataclass
 
+import buckeye
 import crowsetta
 import dask.delayed
 import numpy as np
@@ -613,133 +614,270 @@ def copy_wav_convert_annot_steinfath_et_al_2021_zebra_finch(dry_run=True):
             simple_seq.to_file(csv_path_dst)
 
 
-def copy_audio_convert_annotations_timit(dry_run=True):
-    """"""
-    logger.info(
-        "Processing data from TIMIT, NLTK Sample"
-    )
-    TIMIT_NLTK_DATA_DIRS = [
-        subdir for subdir in constants.TIMIT_NLTK_RAW.iterdir()
-        if subdir.is_dir() and subdir.name.startswith('dr')
-    ]
+class ClipPhones:
+    """Class to represent a set of consecutive phones 
+    that will go into a clip from the Buckeye corpus."""
+    def __init__(self, phones=None):
+        if phones is None:
+            self.phones = []
+        else:
+            if not isinstance(phones, list) or not all([isinstance(phone, buckeye.buckeye.Phone) for phone in phones]):
+                raise ValueError("`phones` was not a `list` of `buckeye.Phone` instances")
+            self.phones = phones
 
-    # keys will be dialect region,
-    # values will be list of speaker IDs
-    nltk_dr_spkr_map = defaultdict(list)
-
-    for data_dir in TIMIT_NLTK_DATA_DIRS:
-        dir_name_upper = data_dir.name.upper()
-        dialect_region, speaker_id = dir_name_upper.split('-')
-        logger.info(
-            f"Processing data for dialect region '{dialect_region}', "
-            f"speaker ID: {speaker_id}"
-        )
-        nltk_dr_spkr_map[dialect_region].append(speaker_id)
-
-        wav_paths = sorted(data_dir.glob('*wav'))
-        wrd_paths = sorted(data_dir.glob('*wrd'))
-        phn_paths = sorted(data_dir.glob('*phn'))
-        if not len(wav_paths) == len(wrd_paths) == len(phn_paths):
-            raise ValueError(
-                f"len(wav_paths)={len(wav_paths)} != len(wrd_paths)={len(wrd_paths)} "
-                f"!= len(phn_paths)={len(phn_paths)}"
+    def __repr__(self):
+        return f"Clip({self.phones})"
+    
+    def append(self, phone):
+        if not isinstance(phone, buckeye.buckeye.Phone):
+            raise TypeError(
+                f"Clip.add expected `phone` instance but got: {type(phone)}"
             )
+        self.phones.append(phone)
 
-        dst = constants.SPEECH_DATA_DST / f"TIMIT-NLTK-{dialect_region}-{speaker_id}"
-        dst.mkdir(exist_ok=True)
-        pbar = tqdm.tqdm(zip(
-            wav_paths, wrd_paths, phn_paths
-        ))
-        for wav_path, wrd_path, phn_path in pbar:
-            pbar.set_description(
-                f"Processing audio and annotations for: {wav_path.name}"
-            )
-            if not dry_run:
-                shutil.copy(wav_path, dst)
+    def __eq__(self, other):
+        if not isinstance(other, ClipPhones):
+            return False
+        return all([
+            self_phone == other_phone
+            for self_phone, other_phone in zip(self.phones, other.phones)
+        ])
 
-            phn_seq = crowsetta.formats.seq.Timit.from_file(phn_path).to_seq()
-            phn_simpleseq = crowsetta.formats.seq.SimpleSeq(
-                onsets_s=phn_seq.onsets_s,
-                offsets_s=phn_seq.offsets_s,
-                labels=phn_seq.labels,
-                annot_path='dummy',
-            )
-            phn_csv_dst = dst / f"{wav_path.name}.phoneme.csv"
-            phn_simpleseq.to_file(phn_csv_dst)
+    def __getitem__(self, index):
+        return self.phones[index]
 
-            wrd_seq = crowsetta.formats.seq.Timit.from_file(wrd_path).to_seq()
-            wrd_simpleseq = crowsetta.formats.seq.SimpleSeq(
-                onsets_s=wrd_seq.onsets_s,
-                offsets_s=wrd_seq.offsets_s,
-                labels=wrd_seq.labels,
-                annot_path='dummy',
-            )
-            wrd_csv_dst = dst / f"{wav_path.name}.word.csv"
-            wrd_simpleseq.to_file(wrd_csv_dst)
-
-    TIMIT_FULL_CORPUS_DATA_DIRS = sorted(constants.TIMIT_FULL_CORPUS_RAW.glob("T*/DR*/*/"))
-
-    logger.info(
-        "Processing data from TIMIT, full corpus"
-    )
-
-    n_skipped = 0
-    for data_dir in TIMIT_FULL_CORPUS_DATA_DIRS:
-        speaker_id = data_dir.name
-        dialect_region = data_dir.parents[0].name
-        if speaker_id in nltk_dr_spkr_map[dialect_region]:
-            logger.info(
-                f"Skipping speaker {speaker_id} because they are in NLTK TIMIT corpus sample"
-            )
-            continue
-        logger.info(
-            f"Processing data for dialect region '{dialect_region}', "
-            f"speaker ID: {speaker_id}"
+    def __len__(self):
+        return len(self.phones)
+    
+    @property
+    def dur(self):
+        return sum(
+            [phone.dur for phone in self.phones]
         )
 
-        wav_paths = sorted(data_dir.glob('*wav'))
-        wrd_paths = sorted(data_dir.glob('*WRD'))
-        phn_paths = sorted(data_dir.glob('*PHN'))
-        if not len(wav_paths) == len(wrd_paths) == len(phn_paths):
-            raise ValueError(
-                f"len(wav_paths)={len(wav_paths)} != len(wrd_paths)={len(wrd_paths)} "
-                f"!= len(phn_paths)={len(phn_paths)}"
-            )
 
-        dst = constants.HUMAN_SPEECH_WE_CANT_SHARE / f"TIMIT-full-corpus-{dialect_region}-{speaker_id}"
-        dst.mkdir(exist_ok=True)
-        pbar = tqdm.tqdm(zip(
-            wav_paths, wrd_paths, phn_paths
-        ))
-        for wav_path, wrd_path, phn_path in pbar:
-            pbar.set_description(
-                f"Processing audio and annotations for: {wav_path.name}"
-            )
-            wav_path_dst = dst / wav_path.stem.replace('.WAV', '.wav')
-            if not dry_run:
-                shutil.copy(wav_path, wav_path_dst)
+# the constant below was obtained with the following code run on clips + annotations *without* any filtering
+# of "rare" phonemes
+# from collections import Counter
 
-            phn_seq = crowsetta.formats.seq.Timit.from_file(phn_path).to_seq()
-            phn_simpleseq = crowsetta.formats.seq.SimpleSeq(
-                onsets_s=phn_seq.onsets_s,
-                offsets_s=phn_seq.offsets_s,
-                labels=phn_seq.labels,
-                annot_path='dummy',
-            )
-            phn_csv_dst = dst / f"{wav_path_dst.name}.phoneme.csv"
-            if not dry_run:
-                phn_simpleseq.to_file(phn_csv_dst)
+# talker_dirs = sorted(
+#     biosoundsegbench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE.glob('Buckeye-corpus-s*')
+# )
 
-            wrd_seq = crowsetta.formats.seq.Timit.from_file(wrd_path).to_seq()
-            wrd_simpleseq = crowsetta.formats.seq.SimpleSeq(
-                onsets_s=wrd_seq.onsets_s,
-                offsets_s=wrd_seq.offsets_s,
-                labels=wrd_seq.labels,
-                annot_path='dummy',
+# talker_count_map = {}
+# pbar = tqdm(talker_dirs)
+# for talker_dir in pbar:
+#     name = talker_dir.name.split('-')[-1]
+#     pbar.set_description(f"Counting occurences of classes for {name}")
+#     csv_paths = sorted(talker_dir.glob('*.csv'))
+#     simple_seqs = [
+#         crowsetta.formats.seq.SimpleSeq.from_file(csv_path)
+#         for csv_path in csv_paths
+#     ]
+#     labels = [
+#         lbl
+#         for simple_seq in simple_seqs
+#         for lbl in simple_seq.labels
+#     ]
+    
+#     talker_count_map[name] = Counter(labels)
+
+# MAP_TO_UNK = {}
+# MIN_COUNT_FOR_NOT_UNK = 4
+# for talker, counter in talker_count_map.items():
+#     MAP_TO_UNK[talker] = {}
+#     for k, v in counter.items():
+#         if v < MIN_COUNT_FOR_NOT_UNK:
+#             MAP_TO_UNK[talker][k] = v
+
+# classes that are phonemes uttered by talker,
+# but are so uncommon ("rare") that we can't be sure we'll have them in train/val/test splits
+# Some of these I think might be one-off transcription/annotation mistakes?
+BUCKEYE_MAP_PHONEME_TO_BACKGROUND = {
+    's01': {'eng': 1},
+    's02': {},
+    's03': {},
+    's04': {'eng': 3},
+    's05': {'eng': 1},
+    's06': {'eng': 1},
+    's07': {'eng': 3},
+    's08': {'eng': 2},
+    's09': {'eng': 3},
+    's10': {'h': 2, 'eng': 2, 'a': 1},
+    's11': {'x': 1, 'q': 1},
+    's12': {'eng': 1, 'h': 1},
+    's13': {'i': 1},
+    's14': {'ih l': 1,
+    'eng': 2,
+    'ah r': 1,
+    'ah l': 2,
+    'x': 1,
+    'a': 1,
+    'ah ix': 1},
+    's15': {'h': 2, 'x': 1, 'a': 2, 'i': 1, 'q': 1, 'uw ix': 1},
+    's16': {'eng': 1, 'h': 1},
+    's17': {'a': 1, 'h': 3, 'i': 1, 'id': 1},
+    's18': {'eng': 3},
+    's19': {},
+    's20': {'h': 2, 'i': 1},
+    's21': {},
+    's22': {'no': 1, 'h': 1},
+    's23': {'zh': 3},
+    's24': {'h': 2, 'x': 1, 'oy': 2, 'a': 1},
+    's25': {'eng': 2},
+    's26': {},
+    's27': {},
+    's28': {},
+    's29': {},
+    's30': {},
+    's31': {},
+    's32': {},
+    's33': {'eng': 1},
+    's34': {'a': 1, 'eng': 1},
+    's35': {'j': 1},
+    's36': {},
+    's37': {'eng': 1},
+    's38': {'eng': 1},
+    's39': {},
+    's40': {'eng': 1}
+}
+
+
+MAX_CLIP_DUR_BUCKEYE = 5.0  # seconds
+
+
+# classes that are not phonemes uttered by talker, we map to background classes
+MAP_TO_BACKGROUND = [
+    '<EXCLUDE>',
+    '<exclude-Name>',
+    'EXCLUDE',
+    'IVER y',
+    'IVER-LAUGH',
+    '<EXCLUDE-name>',
+    'IVER',
+    'LAUGH',
+    'NOISE',
+    'SIL',
+    'UNKNOWN',
+    'VOCNOISE',
+    '{B_TRANS}',
+    '{E_TRANS}'
+]
+
+
+def clip_wav_generate_annot_buckeye(
+    max_clip_dur: float = MAX_CLIP_DUR_BUCKEYE,
+    dry_run: bool = True
+) -> None:
+    """Make clips and generate annotations from Buckeye corpus
+    https://buckeyecorpus.osu.edu/
+
+    Requires the `buckeye` package by Scott Seyfarth
+    https://github.com/scjs/buckeye
+    """
+    for talker in buckeye.corpus(constants.BUCKEYE_ROOT):
+        print(
+            f"Making clips for talker: {talker.name}"
+        )
+        dst = constants.HUMAN_SPEECH_WE_CANT_SHARE / f"Buckeye-corpus-{talker.name}"
+        print(
+            f"Will save clips in: {dst}"
+        )
+        if not dry_run:
+            dst.mkdir(exist_ok=True)
+
+        clip_num = 1
+        for track in talker:
+            print(
+                f"Making clips for track: {track.name}"
             )
-            wrd_csv_dst = dst / f"{wav_path_dst.name}.word.csv"
-            if not dry_run:
-                wrd_simpleseq.to_file(wrd_csv_dst)
+            all_clip_phones = []
+            current_clip_phones = ClipPhones()
+            for phone in track.phones:
+                current_clip_phones.append(phone)
+                if current_clip_phones.dur >= max_clip_dur:
+                    all_clip_phones.append(current_clip_phones)
+                    current_clip_phones = ClipPhones()
+            if not all_clip_phones[-1] == current_clip_phones:
+                if len(current_clip_phones) > 0:
+                    all_clip_phones.append(current_clip_phones)
+
+            # now that we have all the phones for each clip from this track, actually make clips + annotation files
+            wav_path = pathlib.Path(constants.BUCKEYE_ROOT) / (talker.name + "/" + (track.name + ".wav"))
+            sound = voc.Sound.read(wav_path)
+            for clip_phone_num, clip_phones in enumerate(tqdm.tqdm(all_clip_phones)):
+                # sanitize phones, check for positive duration
+                clip_phones.phones = [
+                    phone for phone in clip_phones
+                    if phone.dur > 0
+                ]
+                if len(clip_phones) < 1:
+                    print(
+                        f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, no phones."
+                    )
+                    continue
+                start = clip_phones[0].beg
+                stop = clip_phones[-1].end
+                start_sample_ind = int(start * sound.samplerate)
+                stop_sample_ind = int(stop * sound.samplerate)
+                data = sound.data[..., start_sample_ind:stop_sample_ind + 1]
+                if data.shape[-1] < 1:
+                    print(
+                        f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, audio file shorter than annotations."
+                    )
+                    continue
+                clip_sound = voc.Sound(
+                    data=data,
+                    samplerate=sound.samplerate,
+                )
+                clip_wav_path = dst / f"{track.name}.clip-{clip_num}.wav"
+                if not dry_run:
+                    clip_sound.write(clip_wav_path)
+                start_times = np.array([
+                    phone.beg for phone in clip_phones
+                ])
+                start_time = start_times[0]
+                start_times = start_times - start_time
+                stop_times = np.array([
+                    phone.end for phone in clip_phones
+                ]) - start_time
+                labels = [
+                    # a handful of phonemes (~9) in the dataset have `None` as the label,
+                    # at least when loaded with `buckeye`;
+                    # these all appear to be silences (usually brief), so we label them <SIL>
+                    phone.seg if phone.seg is not None else "SIL"
+                    for phone in clip_phones
+                ]
+                # ** do further clean-up on labels**
+                # map any labels that are not phonemes to 'background'
+                labels = [
+                    'background' if lbl in MAP_TO_BACKGROUND else lbl
+                    for lbl in labels
+                ]
+                # group any nasalized vowels, labeled with n, with the vowels that are not nasalized
+                # to reduce class imbalance
+                labels = [
+                    lbl.replace('n', '') if (lbl.endswith('n') and len(lbl) > 1) else lbl
+                    for lbl in labels
+                ]
+                rare_phones = list(BUCKEYE_MAP_PHONEME_TO_BACKGROUND[talker.name].keys())
+                labels = [
+                    'background' if lbl in rare_phones else lbl
+                    for lbl in labels
+                ]
+                labels = np.array(labels)
+                clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
+                    onsets_s=start_times,
+                    offsets_s=stop_times,
+                    labels=labels,
+                    annot_path='dummy',
+                )
+                clip_csv_path = clip_wav_path.parent / (
+                    clip_wav_path.name + ".phoneme.csv"
+                )
+                if not dry_run:
+                    clip_simple_seq.to_file(clip_csv_path)
+                clip_num += 1
 
 
 def copy_audio_copy_make_annot_all(biosound_groups, dry_run=True):
@@ -777,4 +915,4 @@ def copy_audio_copy_make_annot_all(biosound_groups, dry_run=True):
         logger.info(
             f"Getting audio and annotations for human speech."
         )
-        copy_audio_convert_annotations_timit(dry_run)
+        clip_wav_generate_annot_buckeye(dry_run=dry_run)
