@@ -11,6 +11,13 @@ from . import constants
 logger = logging.getLogger(__name__)
 
 
+BUCKEYE_PHONES = [
+    # these are the phone labels that remain after the filtering done by the function in `copy_audio_copy_make_annot.py`
+    'aa', 'ae', 'ah', 'ah ', 'ao', 'aw', 'ay', 'b', 'ch', 'd', 'dh', 'dx', 'e', 'eh', 'el', 'em', 'eng',
+    'er', 'ey', 'f', 'g', 'h', 'hh', 'i', 'ih', 'iy', 'jh', 'k', 'l', 'm', 'n', 'ng', 'nx', 'ow', 'oy', 'p', 'r',
+    's', 'sh', 't', 'th', 'tq', 'uh', 'uw', 'v', 'w', 'y', 'z', 'zh'
+]
+
 # we write these out in code for now because it's easier
 # but long term we will want this as metadata in static files, not code.
 # We dump them so we can get them later from a static file
@@ -36,15 +43,10 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
     },
     'Human-Speech': {
         'phoneme': {
-            # these 61 phoneme labels appear in both the training set -- the full TIMIT corpus --
-            # and the test set -- the corpus sample that's in NLTK data and on Kaggle
-            'all': [
-                'aa', 'ae', 'ah', 'ao', 'aw', 'ax', 'ax-h', 'axr', 'ay', 'b', 'bcl', 'ch',
-                 'd', 'dcl', 'dh', 'dx', 'eh', 'el', 'em', 'en', 'eng', 'epi', 'er', 'ey',
-                 'f', 'g', 'gcl', 'h#', 'hh', 'hv', 'ih', 'ix', 'iy', 'jh', 'k', 'kcl', 'l',
-                 'm', 'n', 'ng', 'nx', 'ow', 'oy', 'p', 'pau', 'pcl', 'q', 'r', 's', 'sh',
-                 't', 'tcl', 'th', 'uh', 'uw', 'ux', 'v', 'w', 'y', 'z', 'zh'
-            ]
+            # we use the same labelset for each ID in dataset
+            # so we can compare per-phone performance across IDs and across models
+            f"s{n:02}": BUCKEYE_PHONES
+            for n in range(1, 41)
         },
     },
     'Mouse-Pup-Call': {
@@ -57,8 +59,10 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
             'blu285': ['syll_0', 'syll_1', 'syll_2', 'syll_3', 'syll_4', 'syll_5']
         },
     },
-
 }
+
+
+
 
 
 def make_labelsets_from_constant(dry_run=True):
