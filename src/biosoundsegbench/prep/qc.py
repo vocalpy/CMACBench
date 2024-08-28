@@ -119,7 +119,7 @@ BIOSOUND_GROUP_UNIT_DATA_DIR_MAP = {
         ["call"], [constants.DATASET_ROOT],
     ],
     "Human-Speech": [
-        ["phoneme", "word"], [constants.DATASET_ROOT, constants.DATA_WE_CANT_SHARE]
+        ["phoneme"], [constants.DATA_WE_CANT_SHARE]
     ]
 }
 
@@ -149,10 +149,16 @@ def qc_boundary_times(biosound_group, dry_run=True):
             f"QCing boundary times in annotations for root directory '{root_dir.resolve()}'"
             )
         biosound_group_dir = root_dir / biosound_group
-        id_dirs = [
-            id_dir for id_dir in biosound_group_dir.iterdir()
-            if id_dir.is_dir()
-        ]
+        if biosound_group == "Human-Speech":
+            id_dirs = [
+                id_dir for id_dir in biosound_group_dir.iterdir()
+                if id_dir.is_dir() and id_dir.name.startswith("Buckeye")  # make sure we don't get TIMIT data
+            ]
+        else:
+            id_dirs = [
+                id_dir for id_dir in biosound_group_dir.iterdir()
+                if id_dir.is_dir()
+            ]
         for id_dir in id_dirs:
             logger.info(f"Data dir name: {id_dir.name}")
             for unit in unit_list:
@@ -196,14 +202,24 @@ def qc_boundary_times(biosound_group, dry_run=True):
 def qc_labels_in_labelset(biosound_group, unit='syllable', dry_run=True):
     group_unit_id_labelsets_map = labels.get_labelsets()
     id_labelset_map = group_unit_id_labelsets_map[biosound_group][unit]
-    species_root = constants.DATASET_ROOT / biosound_group
-    species_subdirs = [
-        subdir for subdir in species_root.iterdir()
-        if subdir.is_dir()
-    ]
+    if biosound_group == "Human-Speech":
+        biosound_group_root = constants.DATA_WE_CANT_SHARE / biosound_group
+    else:
+        biosound_group_root = constants.DATASET_ROOT / biosound_group
+
+    if biosound_group == "Human-Speech":
+        subdirs = [
+            subdir for subdir in biosound_group_root.iterdir()
+            if subdir.is_dir() and subdir.name.startswith("Buckeye")  # make sure we don't get TIMIT
+        ]
+    else:
+        subdirs = [
+            subdir for subdir in biosound_group_root.iterdir()
+            if subdir.is_dir()
+        ]
     for id, labelset in id_labelset_map.items():
         id_dir = [
-            id_dir for id_dir in species_subdirs
+            id_dir for id_dir in subdirs
             if id_dir.name.endswith(id)
         ]
         if not len(id_dir) == 1:
@@ -219,8 +235,18 @@ def qc_labels_in_labelset(biosound_group, unit='syllable', dry_run=True):
                 f"len(wav_paths)={len(wav_paths)} != len(csv_paths)={len(csv_paths)}"
             )
         labels_not_in_labelset = []
+        n_csv_paths_with_no_segments = 0
         for wav_path, csv_path in zip(wav_paths, csv_paths):
-            simpleseq = crowsetta.formats.seq.SimpleSeq.from_file(csv_path)
+            try:
+                simpleseq = SCRIBE.from_file(csv_path)
+            except pandera.errors.SchemaError as e:
+                import pandas as pd
+                df = pd.read_csv(csv_path)
+                if len(df) == 0:
+                    n_csv_paths_with_no_segments += 1
+                    continue
+                else:
+                    raise e
             if not all(
                 [lbl in labelset for lbl in simpleseq.labels]
             ):
@@ -239,30 +265,27 @@ def qc_labels_in_labelset(biosound_group, unit='syllable', dry_run=True):
                 if not dry_run:
                     shutil.move(wav_path, not_in_labelset_dst)
                     shutil.move(csv_path, not_in_labelset_dst)
+        logger.info(
+            f"Found {n_csv_paths_with_no_segments} csv paths with no annotated segments, "
+            f"{n_csv_paths_with_no_segments / len(csv_paths) * 100:.2f}% of csv paths"
+        )
 
 
 def qc_labels_in_labelset_human_speech(dry_run=True):
-    """For TIMIT, we remove samples from the training set
-    that have phoneme labels that are not in the test set.
-
-    We remove the audio as well as both the phoneme and word level annotations.
-    This is to be able to make apples-to-apples comparisons between
-    models trained on one level versus another.
-    """
+    """Do quality control checks on TIMIT audio and annotations"""
     group_unit_id_labelsets_map = labels.get_labelsets()
     labelset = group_unit_id_labelsets_map['Human-Speech']['phoneme']['all']
     data_root = constants.HUMAN_SPEECH_WE_CANT_SHARE
     speaker_dirs = [
         subdir for subdir in data_root.iterdir()
-        if subdir.is_dir()
+        if subdir.is_dir() and subdir.name.startswith("Buckeye")
     ]
     for speaker_dir in speaker_dirs:
         wav_paths = voc.paths.from_dir(speaker_dir, '.wav')
         phn_paths = voc.paths.from_dir(speaker_dir, '.phoneme.csv')
-        wrd_paths = voc.paths.from_dir(speaker_dir, '.word.csv')
-        if not len(wav_paths) == len(phn_paths) == len(wrd_paths):
+        if not len(wav_paths) == len(phn_paths):
             raise ValueError(
-                f"len(wav_paths)={len(wav_paths)} != len(phn_paths)={len(phn_paths)} != len(wrd_paths)={len(wrd_paths)}"
+                f"len(wav_paths)={len(wav_paths)} != len(phn_paths)={len(phn_paths)}"
             )
         labels_not_in_labelset = []
         for wav_path, phn_path, wrd_path in zip(wav_paths, phn_paths, wrd_paths):
@@ -324,4 +347,4 @@ def do_qc(biosound_groups, dry_run=True):
         )
         qc_boundary_times("Human-Speech", dry_run)
         # we force the training set to only have classes that are in the test set
-        qc_labels_in_labelset_human_speech(dry_run)
+        qc_labels_in_labelset("Human-Speech", "phoneme", dry_run)
