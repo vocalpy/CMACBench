@@ -1036,63 +1036,91 @@ def audio_and_annot_to_inputs_and_targets_speech(
     for unit, annot_path in unit_annot_path_map.items():
         if annot_path is None:
             continue
-        annot = SCRIBE.from_file(annot_path)
-        if unit == 'phoneme':
-            # labelmap has phonemes (not words!)
-            lbls_int = [labelmap[lbl] for lbl in annot.labels]
-            frame_labels_multi = vak.transforms.frame_labels.from_segments(
-                lbls_int,
-                annot.onsets_s,
-                annot.offsets_s,
-                times,
-                background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
-            )
+        HAS_SEGMENTS = True
+        try:
+            annot = SCRIBE.from_file(annot_path)
+        except pandera.errors.SchemaError:
+            import pandas as pd
+            df = pd.read_csv(annot_path)
+            if len(df) == 0:
+                HAS_SEGMENTS = False
+
+        if HAS_SEGMENTS:
+            if unit == 'phoneme':
+                # labelmap has phonemes (not words!)
+                lbls_int = [labelmap[lbl] for lbl in annot.labels]
+                frame_labels_multi = vak.transforms.frame_labels.from_segments(
+                    lbls_int,
+                    annot.onsets_s,
+                    annot.offsets_s,
+                    times,
+                    background_label=labelmap[vak.common.constants.DEFAULT_BACKGROUND_LABEL],
+                )
+                frame_labels_multi_filename = get_multi_frame_labels_filename(
+                    audio_path, mfcc_params.frame_dur, unit
+                )
+                frame_labels_multi_path = dst / frame_labels_multi_filename
+                np.save(frame_labels_multi_path, frame_labels_multi)
+
+                # we don't generate binary classification since
+                # in general there are not silent segments
+                # between phonemes
+
+                boundary_times = np.unique(
+                    voc.metrics.segmentation.ir.concat_starts_and_stops(
+                        annot.onsets_s, annot.offsets_s)
+                )
+                boundary_frame_labels = boundary_frame_labels_from_times(
+                    boundary_times,
+                    times
+                )
+                boundary_frame_labels_filename = get_boundary_frame_labels_filename(
+                    audio_path, mfcc_params.frame_dur, unit
+                )
+                boundary_frame_labels_path = dst / boundary_frame_labels_filename
+                np.save(boundary_frame_labels_path, boundary_frame_labels)
+            elif unit == 'word':
+                # we don't generate multi-class frame labels because
+                # of the extreme imbalance between classes --
+                # some words occur only once
+
+                # we don't generate binary classification since
+                # in general there are not silent segments
+                # between words
+
+                # so that leaves us ... boundary times
+                boundary_times = np.unique(
+                    voc.metrics.segmentation.ir.concat_starts_and_stops(
+                        annot.onsets_s, annot.offsets_s)
+                )
+                boundary_frame_labels = boundary_frame_labels_from_times(
+                    boundary_times,
+                    times
+                )
+                boundary_frame_labels_filename = get_boundary_frame_labels_filename(
+                    audio_path, mfcc_params.frame_dur, unit
+                )
+                boundary_frame_labels_path = dst / boundary_frame_labels_filename
+                np.save(boundary_frame_labels_path, boundary_frame_labels)
+        else:  # no segments
+            all_zeros_vector = np.zeros_like(times).astype(int)
             frame_labels_multi_filename = get_multi_frame_labels_filename(
                 audio_path, mfcc_params.frame_dur, unit
             )
             frame_labels_multi_path = dst / frame_labels_multi_filename
-            np.save(frame_labels_multi_path, frame_labels_multi)
+            np.save(frame_labels_multi_path, all_zeros_vector)
 
-            # we don't generate binary classification since
-            # in general there are not silent segments
-            # between phonemes
+            frame_labels_binary_filename = get_binary_frame_labels_filename(
+                audio_path, mfcc_params.frame_dur, unit
+            )
+            frame_labels_binary_path = dst / frame_labels_binary_filename
+            np.save(frame_labels_binary_path, all_zeros_vector)
 
-            boundary_times = np.unique(
-                voc.metrics.segmentation.ir.concat_starts_and_stops(
-                    annot.onsets_s, annot.offsets_s)
-            )
-            boundary_frame_labels = boundary_frame_labels_from_times(
-                boundary_times,
-                times
-            )
             boundary_frame_labels_filename = get_boundary_frame_labels_filename(
                 audio_path, mfcc_params.frame_dur, unit
             )
             boundary_frame_labels_path = dst / boundary_frame_labels_filename
-            np.save(boundary_frame_labels_path, boundary_frame_labels)
-        elif unit == 'word':
-            # we don't generate multi-class frame labels because
-            # of the extreme imbalance between classes --
-            # some words occur only once
-
-            # we don't generate binary classification since
-            # in general there are not silent segments
-            # between words
-
-            # so that leaves us ... boundary times
-            boundary_times = np.unique(
-                voc.metrics.segmentation.ir.concat_starts_and_stops(
-                    annot.onsets_s, annot.offsets_s)
-            )
-            boundary_frame_labels = boundary_frame_labels_from_times(
-                boundary_times,
-                times
-            )
-            boundary_frame_labels_filename = get_boundary_frame_labels_filename(
-                audio_path, mfcc_params.frame_dur, unit
-            )
-            boundary_frame_labels_path = dst / boundary_frame_labels_filename
-            np.save(boundary_frame_labels_path, boundary_frame_labels)
+            np.save(boundary_frame_labels_path, all_zeros_vector)
 
 
 HUMAN_SPEECH_MFCC_PARAMS = [
