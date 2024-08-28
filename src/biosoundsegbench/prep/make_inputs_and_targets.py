@@ -958,7 +958,7 @@ def speech_audio_to_MFCC_features(
 
 @dataclass
 class SpeechMFCCParams:
-    n_fft_s: float = 0.25
+    n_fft_s: float = 0.025
     hop_length_s: float = 0.01
     n_mels: int = 40
     n_mfcc: int = 13
