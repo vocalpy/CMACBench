@@ -744,7 +744,7 @@ BUCKEYE_MAP_PHONEME_TO_BACKGROUND = {
 
 
 MAX_CLIP_DUR_BUCKEYE = 5.0  # seconds
-
+MIN_CLIP_DUR_BUCKEYE = 0.5
 
 # classes that are not phonemes uttered by talker, we map to background classes
 MAP_TO_BACKGROUND = [
@@ -767,6 +767,7 @@ MAP_TO_BACKGROUND = [
 
 def clip_wav_generate_annot_buckeye(
     max_clip_dur: float = MAX_CLIP_DUR_BUCKEYE,
+    min_clip_dur: float = MIN_CLIP_DUR_BUCKEYE,
     dry_run: bool = True
 ) -> None:
     """Make clips and generate annotations from Buckeye corpus
@@ -776,11 +777,11 @@ def clip_wav_generate_annot_buckeye(
     https://github.com/scjs/buckeye
     """
     for talker in buckeye.corpus(constants.BUCKEYE_ROOT):
-        print(
+        logger.info(
             f"Making clips for talker: {talker.name}"
         )
         dst = constants.HUMAN_SPEECH_WE_CANT_SHARE / f"Buckeye-corpus-{talker.name}"
-        print(
+        logger.info(
             f"Will save clips in: {dst}"
         )
         if not dry_run:
@@ -788,7 +789,7 @@ def clip_wav_generate_annot_buckeye(
 
         clip_num = 1
         for track in talker:
-            print(
+            logger.info(
                 f"Making clips for track: {track.name}"
             )
             all_clip_phones = []
@@ -812,7 +813,7 @@ def clip_wav_generate_annot_buckeye(
                     if phone.dur > 0
                 ]
                 if len(clip_phones) < 1:
-                    print(
+                    logger.info(
                         f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, no phones."
                     )
                     continue
@@ -822,7 +823,7 @@ def clip_wav_generate_annot_buckeye(
                 stop_sample_ind = int(stop * sound.samplerate)
                 data = sound.data[..., start_sample_ind:stop_sample_ind + 1]
                 if data.shape[-1] < 1:
-                    print(
+                    logger.info(
                         f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, audio file shorter than annotations."
                     )
                     continue
@@ -830,6 +831,11 @@ def clip_wav_generate_annot_buckeye(
                     data=data,
                     samplerate=sound.samplerate,
                 )
+                if clip_sound.duration < min_clip_dur:
+                    logger.info(
+                        f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, shorter than min clip duration."
+                    )
+                    continue
                 clip_wav_path = dst / f"{track.name}.clip-{clip_num}.wav"
                 if not dry_run:
                     clip_sound.write(clip_wav_path)

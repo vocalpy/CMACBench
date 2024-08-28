@@ -1107,12 +1107,10 @@ def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True
     """
     """
     wav_paths = sorted(speaker_id_dir.glob('*.wav'))
-    wrd_paths = sorted(speaker_id_dir.glob('*.word.csv'))
     phn_paths = sorted(speaker_id_dir.glob('*.phoneme.csv'))
 
     wav_with_unit_annot = []
     phn_paths_fnd = 0
-    wrd_paths_fnd = 0
     for wav_path in wav_paths:
         unit_annot_path_map = {}
         expected_phn_path = speaker_id_dir / f"{wav_path.name}.phoneme.csv"
@@ -1121,12 +1119,6 @@ def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True
             phn_paths_fnd += 1
         else:
             unit_annot_path_map['phoneme'] = None
-        expected_wrd_path = speaker_id_dir / f"{wav_path.name}.word.csv"
-        if expected_wrd_path in wrd_paths:
-            unit_annot_path_map['word'] = expected_wrd_path
-            wrd_paths_fnd += 1
-        else:
-            unit_annot_path_map['word'] = None
         wav_with_unit_annot.append(
             (wav_path, unit_annot_path_map)
         )
@@ -1134,12 +1126,6 @@ def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True
         raise ValueError(
             f"Found {phn_paths_fnd} phoneme annotation paths when pairing "
             f"but found {len(phn_paths)} total phoneme annotation paths in directory:\n{speaker_id_dir}"
-        )
-
-    if wrd_paths_fnd != len(wrd_paths):
-        raise ValueError(
-            f"Found {wrd_paths_fnd} word annotation paths when pairing "
-            f"but found {len(wrd_paths)} total word annotation paths in directory:\n{speaker_id_dir}"
         )
 
     for mfcc_params in HUMAN_SPEECH_MFCC_PARAMS:
@@ -1163,20 +1149,19 @@ def make_inputs_targets_speech_speaker_id(speaker_id_dir, labelmap, dry_run=True
 
 
 def make_inputs_and_targets_human_speech(dry_run=True):
-    """
-    """
-    TIMIT_DIALECT_SPKR_DIRS = [
+    """Make inputs and target for human speech using Buckeye corpus"""
+    BUCKEYE_SPEAKER_DIRS = [
         dir_ for dir_ in constants.HUMAN_SPEECH_WE_CANT_SHARE.iterdir()
-        if dir_.is_dir()
-    ] + [dir_ for dir_ in constants.SPEECH_DATA_DST.iterdir() if dir_.is_dir()]
+        if dir_.is_dir() and dir_.name.startswith("Buckeye")
+    ]
 
-    species_id_labelmap_map = labels.get_labelmaps()
-    labelmap = species_id_labelmap_map['Human-Speech']['phoneme']['all']
-    for id_dir in TIMIT_DIALECT_SPKR_DIRS:
+    biosound_group_id_labelmap_map = labels.get_labelmaps()
+    for id_dir in BUCKEYE_SPEAKER_DIRS:
         logger.info(
             f"Making neural network inputs and targets for: {id_dir.name}"
         )
-        id = id_dir.name.split('-')[-1]
+        id_ = id_dir.name.split('-')[-1]
+        labelmap = biosound_group_id_labelmap_map['Human-Speech']['phoneme'][id_]
         make_inputs_targets_speech_speaker_id(id_dir, labelmap, dry_run=dry_run)
 
 
