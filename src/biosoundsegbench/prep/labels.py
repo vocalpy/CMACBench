@@ -3,7 +3,9 @@ import json
 import logging
 
 import crowsetta
+import pandera.errors
 import vak
+from tqdm import tqdm
 
 from . import constants
 
@@ -12,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 BUCKEYE_PHONES = [
-    # these are the phone labels that remain after the filtering done by the function in `copy_audio_copy_make_annot.py`
+    # this is the unique set of phone labels **across all IDs** in the Buckeye corpus
+    # that remain after the filtering done by the function in `copy_audio_copy_make_annot.py`
     'aa', 'ae', 'ah', 'ah ', 'ao', 'aw', 'ay', 'b', 'ch', 'd', 'dh', 'dx', 'e', 'eh', 'el', 'em', 'eng',
     'er', 'ey', 'f', 'g', 'h', 'hh', 'i', 'ih', 'iy', 'jh', 'k', 'l', 'm', 'n', 'ng', 'nx', 'ow', 'oy', 'p', 'r',
     's', 'sh', 't', 'th', 'tq', 'uh', 'uw', 'v', 'w', 'y', 'z', 'zh'
@@ -41,14 +44,6 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
             'llb16': "range: 1-30",
         },
     },
-    'Human-Speech': {
-        'phoneme': {
-            # we use the same labelset for each ID in dataset
-            # so we can compare per-phone performance across IDs and across models
-            f"s{n:02}": BUCKEYE_PHONES
-            for n in range(1, 41)
-        },
-    },
     'Mouse-Pup-Call': {
         'call': {
             'all': ['BK', 'BW', 'GO', 'LL', 'LO', 'MU', 'MZ', 'NB', 'PO', 'SW']
@@ -65,8 +60,13 @@ GROUP_UNIT_ID_LABELSTR_MAP = {
 
 
 
-def make_labelsets_from_constant(dry_run=True):
-    """Make labelsets from module-level constant GROUP_UNIT_ID_LABELSTR_MAP"""
+def make_labelsets(dry_run=True):
+    """Make sets of unique labels for each ID in each group
+    
+    For now all groups use module-level constant GROUP_UNIT_ID_LABELSTR_MAP
+    except for human speech, where we compute the per-ID labelsets
+    from the actual annotation files
+    """
     group_unit_id_labelsets_map = {}
     for species in GROUP_UNIT_ID_LABELSTR_MAP.keys():
         group_unit_id_labelsets_map[species] = {}
@@ -81,6 +81,34 @@ def make_labelsets_from_constant(dry_run=True):
             }
         group_unit_id_labelsets_map[species][unit] = id_labelset_map
 
+    # ---- human speech labelsets
+    talker_dirs = sorted(
+        constants.HUMAN_SPEECH_WE_CANT_SHARE.glob('Buckeye-corpus-s*')
+    )
+
+    talker_labelsets = {}
+    pbar = tqdm(talker_dirs)
+    for talker_dir in pbar:
+        labelset = set()
+        name = talker_dir.name.split('-')[-1]
+        pbar.set_description(f"Counting occurences of classes for Buckeye ID: {name}")
+        csv_paths = sorted(talker_dir.glob('*.csv'))
+        simple_seqs = []
+        for csv_path in csv_paths:
+            try:
+                simple_seqs.append(
+                    crowsetta.formats.seq.SimpleSeq.from_file(csv_path)
+                )
+            except pandera.errors.SchemaError:
+                continue
+        for simple_seq in simple_seqs:
+            labelset = labelset.union(set(simple_seq.labels))
+        talker_labelsets[name] = labelset
+    group_unit_id_labelsets_map["Human-Speech"] = {}   
+    group_unit_id_labelsets_map["Human-Speech"]["phoneme"] = {
+        talker: list(labelset) for talker, labelset in talker_labelsets.items()
+    }
+
     return group_unit_id_labelsets_map
 
 
@@ -89,22 +117,40 @@ SCRIBE = crowsetta.Transcriber(format="simple-seq")
 
 def set_to_map(group_unit_id_labelsets_map):
     """Convert sets of labels to maps,
-    that map from labels to consecutive integers"""
+    that map from labels to consecutive integers.
+    
+    Note that for human speech, 
+    we use a fixed labelmap across all IDs.
+    """
     species_id_labelmap_map = {}
     for species in group_unit_id_labelsets_map.keys():
         species_id_labelmap_map[species]= {}
         for unit in group_unit_id_labelsets_map[species].keys():
             id_labelset_map = group_unit_id_labelsets_map[species][unit]
-            id_labelmap_map = {
-                id: vak.common.labels.to_map(
-                    # we need to convert from list back to set when loading from json
-                    set(labelset),
-                    map_background=True,
-                    # next line: just bein' explicit, like ya do
-                    background_label=vak.common.constants.DEFAULT_BACKGROUND_LABEL,
-                )
-                for id, labelset in id_labelset_map.items()
-            }
+            if species == "Human-Speech" and unit == "phoneme":
+                # we want to use the same labelmap across all IDs in Buckeye corpus,
+                # even though there are different per-ID labelsets
+                id_labelmap_map = {
+                    id: vak.common.labels.to_map(
+                        # we need to convert from list back to set when loading from json
+                        set(BUCKEYE_PHONES),
+                        map_background=True,
+                        # next line: just bein' explicit, like ya do
+                        background_label=vak.common.constants.DEFAULT_BACKGROUND_LABEL,
+                    )
+                    for id, _ in id_labelset_map.items()
+                }
+            else:
+                id_labelmap_map = {
+                    id: vak.common.labels.to_map(
+                        # we need to convert from list back to set when loading from json
+                        set(labelset),
+                        map_background=True,
+                        # next line: just bein' explicit, like ya do
+                        background_label=vak.common.constants.DEFAULT_BACKGROUND_LABEL,
+                    )
+                    for id, labelset in id_labelset_map.items()
+                }
             species_id_labelmap_map[species][unit] = id_labelmap_map
     return species_id_labelmap_map
 
@@ -123,7 +169,7 @@ def make_labelsets_and_labelmaps(dry_run=True):
     logger.info(
         f"Making labelsets from module-level constant GROUP_UNIT_ID_LABELSTR_MAP"
     )
-    group_unit_id_labelsets_map = make_labelsets_from_constant()
+    group_unit_id_labelsets_map = make_labelsets()
 
     logger.info(
         f"Final group_unit_id_labelsets_map:\n{group_unit_id_labelsets_map}"
