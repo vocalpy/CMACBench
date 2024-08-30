@@ -1,4 +1,4 @@
-from . import parser
+from . import constants, parser
 from .clean import clean
 from .copy_audio_copy_make_annot import copy_audio_copy_make_annot_all
 from .dirs import mkdirs
