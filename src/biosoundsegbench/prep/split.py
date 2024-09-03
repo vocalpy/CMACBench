@@ -110,11 +110,11 @@ def get_split_wav_paths(
     )
 
 
-TARGET_COLUMNS = [
+TARGET_COLUMNS = (
     "multi_frame_labels_path",
     "binary_frame_labels_path",
     "boundary_frame_labels_path",
-]
+)
 
 
 def split_wav_paths_to_df(
@@ -328,6 +328,7 @@ def get_replicate_csv_filename_leave_one_id_out(
 BIOSOUND_GROUP_DIR_MAP = {
     'Bengalese-Finch-Song': constants.BF_DATA_DST,
     'Canary-Song': constants.CANARY_DATA_DST,
+    'Human-Speech': constants.HUMAN_SPEECH_WE_CANT_SHARE,
     'Mouse-Pup-Call': constants.MOUSE_PUP_CALL_DATA_DST,
     'Zebra-Finch-Song': constants.ZB_DATA_DST,
 }
@@ -352,11 +353,18 @@ def get_splits_df_and_replicate_dfs_per_id(
     and a list of paths to csv files representing training replicates.
     """
     group_dir = BIOSOUND_GROUP_DIR_MAP[biosound_group]
-    id_dirs = [
-        subdir
-        for subdir in group_dir.iterdir()
-        if subdir.is_dir()
-    ]
+    if biosound_group == "Human-Speech":
+        id_dirs = sorted([
+            subdir
+            for subdir in group_dir.iterdir()
+            if subdir.is_dir() and subdir.name.startswith("Buckeye")
+        ])
+    else:
+        id_dirs = [
+            subdir
+            for subdir in group_dir.iterdir()
+            if subdir.is_dir()
+        ]
     logger.info(
         f"Found ID dirs:\n{id_dirs}"
     )
@@ -565,7 +573,7 @@ def make_splits_per_id(
     train_subset_dur_id_only: float,
     num_replicates: int,
     train_subset_dur_leave_one_id_out: int | None = None,
-    target_columns: list[str] =TARGET_COLUMNS,
+    target_columns: list[str] = TARGET_COLUMNS,
     dry_run: bool = True,
     use_id_all_for_labelset: bool = False,
     make_leave_one_id_out_splits=True,
@@ -1026,10 +1034,23 @@ def clip_to_target_dur(
             inds_in_sample_vec[:clipped_length],
         )
     else:
-        class_inds = np.asarray(sorted(list(labelmap.values())))
+        # We check whether all classes that were present in frame labels *before* clipping
+        # are still present *after* clipping
+        # NB: we are not comparing to the declared labelset or labelmap here,
+        # so we *assume* that we already correctly included all the classes in the labelset and/or labelmap
+        # for each split as expected
+        # This is to avoid crashing in the situation where not all classes in a labelmap are actually in
+        # the ground truth frame labels: e.g., for the Buckeye corpus, we don't have instances of all classes
+        # in the labelmap for all speakers, but we should have already guaranteed that at least one instance of 
+        # each class that we *do* have for a given speaker will be in each split for that speaker.
+        # So we just want to make sure we don't inadvertently *remove* any classes that did exist before clipping
+        class_inds_in_all_frame_labels = np.unique(all_frame_labels_vec)
         all_frame_labels_vec_clipped = all_frame_labels_vec[:clipped_length]
         class_inds_in_all_frame_labels_clipped = np.unique(all_frame_labels_vec_clipped)
-        if np.array_equal(class_inds_in_all_frame_labels_clipped, class_inds):
+        if np.array_equal(
+            class_inds_in_all_frame_labels,
+            class_inds_in_all_frame_labels_clipped
+            ):
             return (
                 sample_id_vec[:clipped_length],
                 inds_in_sample_vec[:clipped_length],
@@ -1055,6 +1076,7 @@ class MakeSplitsParams:
     train_subset_dur_id_only: float
     num_replicates: int
     make_leave_one_id_out_splits: bool = True
+    target_columns: tuple[str] = TARGET_COLUMNS
 
 
 # this ratio comes from measuring the duration of audio samples, 
@@ -1070,10 +1092,14 @@ MOUSE_FRAMES_DUR_AUDIO_DUR_RATIO = 0.976
 # Clearly there's some effect of windowing / other computations in STFT I'm not understanding
 BF_FRAMES_DUR_AUDIO_DUR_RATIO = 0.998
 
+# for human speech MFCCs there is basically no shrink
+HUMAN_SPEECH_FRAMES_DUR_AUDIO_DUR_RATIO = 1.00009
+
 
 FRAMES_DUR_AUDIO_DUR_RATIO = {
     "Mouse-Pup-Call": MOUSE_FRAMES_DUR_AUDIO_DUR_RATIO,
-    "Bengalese-Finch-Song": BF_FRAMES_DUR_AUDIO_DUR_RATIO
+    "Bengalese-Finch-Song": BF_FRAMES_DUR_AUDIO_DUR_RATIO,
+    "Human-Speech": HUMAN_SPEECH_FRAMES_DUR_AUDIO_DUR_RATIO,
 }
 
 
@@ -1386,58 +1412,70 @@ def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingRe
 
 
 BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
-    "Bengalese-Finch-Song": MakeSplitsParams(
-        biosound_group='Bengalese-Finch-Song',
-        unit='syllable',
-        frame_dur_str='1.0',
-        total_train_dur=900.,
-        val_dur=80.,
-        test_dur=400.,
-        train_subset_dur_id_only=600.,
-        num_replicates=3,
-    ),
-    "Canary-Song": MakeSplitsParams(
-        biosound_group='Canary-Song',
-        unit='syllable',
-        frame_dur_str='2.7',
-        total_train_dur=10000.,
-        val_dur=250.,
-        test_dur=5000.,
-        train_subset_dur_id_only=3600.,
-        num_replicates=3,
-    ),
-    "Mouse-Pup-Call": MakeSplitsParams(
-        biosound_group='Mouse-Pup-Call',
-        unit='call',
-        frame_dur_str='1.5',
-        total_train_dur=2100.,
-        val_dur=50.,
-        test_dur=750.,
-        train_subset_dur_id_only=1500.,
-        num_replicates=3,
-    ),
-    "Zebra-Finch-Song": MakeSplitsParams(
-        biosound_group='Zebra-Finch-Song',
-        unit='syllable',
-        frame_dur_str='0.5',
-        total_train_dur=130.,
-        val_dur=10.,
-        test_dur=40.,
-        train_subset_dur_id_only=100.,
-        num_replicates=3,
-        make_leave_one_id_out_splits=False,
-    ),
-    "Human-Speech": MakeSplitsParams(
-        biosound_group='Human-Speech',
-        unit='phoneme',
-        frame_dur_str='10.0',
-        total_train_dur=18000.,
-        val_dur=500.,
-        test_dur=500.,
-        train_subset_dur_id_only=16000.,
-        num_replicates=3,
-        make_leave_one_id_out_splits=False,
-    ),
+    "Bengalese-Finch-Song": [
+            MakeSplitsParams(
+            biosound_group='Bengalese-Finch-Song',
+            unit='syllable',
+            frame_dur_str='1.0',
+            total_train_dur=900.,
+            val_dur=80.,
+            test_dur=400.,
+            train_subset_dur_id_only=600.,
+            num_replicates=3,
+        ),
+    ],
+    "Canary-Song": [
+        MakeSplitsParams(
+            biosound_group='Canary-Song',
+            unit='syllable',
+            frame_dur_str='2.7',
+            total_train_dur=10000.,
+            val_dur=250.,
+            test_dur=5000.,
+            train_subset_dur_id_only=3600.,
+            num_replicates=3,
+        ),
+    ],
+    "Mouse-Pup-Call": [
+        MakeSplitsParams(
+            biosound_group='Mouse-Pup-Call',
+            unit='call',
+            frame_dur_str='1.5',
+            total_train_dur=2100.,
+            val_dur=50.,
+            test_dur=750.,
+            train_subset_dur_id_only=1500.,
+            num_replicates=3,
+        ),
+    ],
+    "Zebra-Finch-Song": [
+        MakeSplitsParams(
+            biosound_group='Zebra-Finch-Song',
+            unit='syllable',
+            frame_dur_str='0.5',
+            total_train_dur=130.,
+            val_dur=10.,
+            test_dur=40.,
+            train_subset_dur_id_only=100.,
+            num_replicates=3,
+            make_leave_one_id_out_splits=False,
+        ),
+    ],
+    "Human-Speech": [
+        MakeSplitsParams(
+            biosound_group='Human-Speech',
+            unit='phoneme',
+            frame_dur_str='1.0',
+            total_train_dur=1647.,
+            val_dur=118.,
+            test_dur=589.,
+            train_subset_dur_id_only=1645.,
+            num_replicates=3,
+            make_leave_one_id_out_splits=False,
+            # for human speech phonemes, we don't bother with binary frame labels
+            target_columns=("multi_frame_labels_path", "boundary_frame_labels_path")
+        ),
+    ],
 }
 
 
@@ -1449,31 +1487,25 @@ def make_splits_all(
         logger.info(
             f"Making splits for biosound group: {biosound_group}"
         )
-        params = BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP[biosound_group]
-        if biosound_group == 'Human-Speech':
-            replicate_csv_paths = make_splits_timit(
-                total_train_dur=params.total_train_dur,
-                val_dur=params.val_dur,
-                train_subset_dur=params.train_subset_dur_id_only,
-                num_replicates=params.num_replicates,
-                dry_run=dry_run,
-            )
-        else:
+        split_params_list = BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP[biosound_group]
+        # right now all the groups are one-element lists except for human speech
+        # where we have two different durations of time bin
+        for params in split_params_list:
             params_dict = dataclasses.asdict(params)
             params_dict['dry_run'] = dry_run
             replicate_csv_paths = make_splits_per_id(**params_dict)
-        splits_path_json_paths = save_vecs_and_make_json_from_csv_paths(
-            replicate_csv_paths, 
-            params,
-            dry_run,
-        )
-        for splits_path_json_path in splits_path_json_paths:
-            metadata = metadata_from_splits_json_path(
-                splits_path_json_path
+            splits_path_json_paths = save_vecs_and_make_json_from_csv_paths(
+                replicate_csv_paths, 
+                params,
+                dry_run,
             )
-            metadata_for_json.append(
-                dataclasses.asdict(metadata)
-            )
+            for splits_path_json_path in splits_path_json_paths:
+                metadata = metadata_from_splits_json_path(
+                    splits_path_json_path
+                )
+                metadata_for_json.append(
+                    dataclasses.asdict(metadata)
+                )
     if not constants.TRAINING_REPLICATE_METADATA_JSON_PATH.exists():
         with (constants.TRAINING_REPLICATE_METADATA_JSON_PATH).open('w') as fp:
             json.dump(metadata_for_json, fp, indent=4)
