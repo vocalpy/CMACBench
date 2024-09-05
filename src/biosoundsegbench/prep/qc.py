@@ -271,46 +271,6 @@ def qc_labels_in_labelset(biosound_group, unit='syllable', dry_run=True):
         )
 
 
-def qc_labels_in_labelset_human_speech(dry_run=True):
-    """Do quality control checks on TIMIT audio and annotations"""
-    group_unit_id_labelsets_map = labels.get_labelsets()
-    labelset = group_unit_id_labelsets_map['Human-Speech']['phoneme']['all']
-    data_root = constants.HUMAN_SPEECH_WE_CANT_SHARE
-    speaker_dirs = [
-        subdir for subdir in data_root.iterdir()
-        if subdir.is_dir() and subdir.name.startswith("Buckeye")
-    ]
-    for speaker_dir in speaker_dirs:
-        wav_paths = voc.paths.from_dir(speaker_dir, '.wav')
-        phn_paths = voc.paths.from_dir(speaker_dir, '.phoneme.csv')
-        if not len(wav_paths) == len(phn_paths):
-            raise ValueError(
-                f"len(wav_paths)={len(wav_paths)} != len(phn_paths)={len(phn_paths)}"
-            )
-        labels_not_in_labelset = []
-        for wav_path, phn_path, wrd_path in zip(wav_paths, phn_paths, wrd_paths):
-            simpleseq = crowsetta.formats.seq.SimpleSeq.from_file(phn_path)
-            if not all(
-                [lbl in labelset for lbl in simpleseq.labels]
-            ):
-                labels_not_in_labelset.append(
-                    (wav_path, phn_path, wrd_path)
-                )
-        logger.info(
-            f"Found {len(labels_not_in_labelset)} annotations with labels "
-            f"not in labelset for dir: {speaker_dir.name}"
-        )
-        if len(labels_not_in_labelset) > 0:
-            not_in_labelset_dst = speaker_dir / 'labels-not-in-labelset'
-            if not dry_run:
-                not_in_labelset_dst.mkdir(exist_ok=True)
-            for wav_path, phn_path, wrd_path in labels_not_in_labelset:
-                if not dry_run:
-                    shutil.move(wav_path, not_in_labelset_dst)
-                    shutil.move(phn_path, not_in_labelset_dst)
-                    shutil.move(wrd_path, not_in_labelset_dst)
-
-
 def do_qc(biosound_groups, dry_run=True):
     """Do quality control checks after copying audio files,
     and copying/converting/generating annotation files."""
