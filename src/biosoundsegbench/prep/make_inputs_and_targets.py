@@ -963,7 +963,7 @@ class SpeechMFCCParams:
     n_mels: int = 40
     n_mfcc: int = 13
     frame_dur: float = 10.  # ms
-    add_dist_features: bool = False
+    add_dist_features: bool = True
     spect_key: str = 's'
     freqbins_key: str = 'f'
     timebins_key: str = 't'
