@@ -1059,7 +1059,7 @@ def clip_to_target_dur(
             raise ValueError(
                 "Was not able to clip to specified duration "
                 "in a way that maintained all classes in dataset. "
-                f"All classes: {class_inds}\n"
+                f"Classes in dataset before clipping: {class_inds_in_all_frame_labels}\n"
                 f"Classes in dataset after clipping: {class_inds_in_all_frame_labels_clipped}"
             )
 
@@ -1238,7 +1238,6 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
                     np.load(constants.DATASET_ROOT / frame_labels_path)
                     for frame_labels_path in multi_frame_labels_paths
                 ])
-
 
             if split_params.biosound_group in FRAMES_DUR_AUDIO_DUR_RATIO:
                 # we scale target duration down with this ratio, see comments by the constant declaration above
@@ -1466,10 +1465,10 @@ BIOSOUND_GROUP_MAKE_SPLITS_PARAMS_MAP = {
             biosound_group='Human-Speech',
             unit='phoneme',
             frame_dur_str='1.0',
-            total_train_dur=1647.,
-            val_dur=118.,
-            test_dur=589.,
-            train_subset_dur_id_only=1645.,
+            total_train_dur=1519.,
+            val_dur=108.,
+            test_dur=542.,
+            train_subset_dur_id_only=1519.,
             num_replicates=3,
             make_leave_one_id_out_splits=False,
             # for human speech phonemes, we don't bother with binary frame labels
