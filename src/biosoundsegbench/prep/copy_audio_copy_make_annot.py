@@ -817,6 +817,8 @@ def clip_wav_generate_annot_buckeye(
                         f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, no phones."
                     )
                     continue
+
+                # ---- check for valid audio clip ----
                 start = clip_phones[0].beg
                 stop = clip_phones[-1].end
                 start_sample_ind = int(start * sound.samplerate)
@@ -836,9 +838,10 @@ def clip_wav_generate_annot_buckeye(
                         f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, shorter than min clip duration."
                     )
                     continue
-                clip_wav_path = dst / f"{track.name}.clip-{clip_num}.wav"
-                if not dry_run:
-                    clip_sound.write(clip_wav_path)
+
+                # ---- check for valid annotations ----
+                # we do this *before* we save the audio clip and annotations
+                # because we will skip this clip if the annotations are only the "background" class
                 start_times = np.array([
                     phone.beg for phone in clip_phones
                 ])
@@ -880,8 +883,18 @@ def clip_wav_generate_annot_buckeye(
                 start_times = start_times[not_background]
                 stop_times = stop_times[not_background]
                 labels = labels[not_background]
+                if len(labels) < 1:
+                    # then we just removed all labels because they were all background
+                    logger.info(
+                        f"Skipping clip {clip_phone_num} of {len(all_clip_phones)}, all labels were background class."
+                    )
+                    continue
 
-                # after removing background we can save annotations
+                # ---- ok, now we can finally write the audio and the annotations ----
+                clip_wav_path = dst / f"{track.name}.clip-{clip_num}.wav"
+                if not dry_run:
+                    clip_sound.write(clip_wav_path)
+
                 clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
                     onsets_s=start_times,
                     offsets_s=stop_times,
