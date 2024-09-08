@@ -1181,6 +1181,7 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
             logger.info(
                 f"Will clip split to target duration"
             )
+            # ---- to clip we need: target_dur, all_frame_labels_vec and labelmap
             if metadata.data_source == "id-data-only":
                 if split == "train":
                     target_dur = split_params.train_subset_dur_id_only
@@ -1192,11 +1193,10 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
                     logger.info(
                         f"Using split_params.test_dur as target duration: {target_dur}"
                     )
-                # both {"Mouse-Pup-Call", unit="call"} and {"Human-Speech", unit="phoneme"} use ID "all"
-                # to train a single model for all IDs; in the case of Mouse-Pup-Call the training data
-                # does actually only contain data from a single species per dataset (that we treat as an ID)
                 if (split_params.biosound_group == "Mouse-Pup-Call" and split_params.unit == "call"):
-                    labelmap = labels.get_labelmaps()[split_params.biosound_group][split_params.unit]["all"]
+                    # "Mouse-Pup-Call" uses ID "all" for all IDs -- every multi-class model is trained to predict these IDs
+                    # even though the training data for "id-only" does actually only contain data from a single species per dataset
+                    # (that we treat as an ID)
                     # since we only have data from one ID, we don't want to require that the labels for all IDs be in the dataset
                     labelmap = None
                     all_frame_labels_vec = None
