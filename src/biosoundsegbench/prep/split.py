@@ -989,7 +989,7 @@ def clip_to_target_dur(
             "If `labelmap` is provided then `all_frame_labels_vec` cannot be None"
         )
     if all_frame_labels_vec is not None:
-        inds_in_sample_vec = vak.common.validators.column_or_1d(all_frame_labels_vec)
+        all_frame_labels_vec = vak.common.validators.column_or_1d(all_frame_labels_vec)
 
     lens = {
         "sample_id_vec": sample_id_vec.shape[-1],
