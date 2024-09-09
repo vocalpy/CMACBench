@@ -959,7 +959,7 @@ def argsort_by_label_freq(
     return sort_inds
 
 
-def clip_to_target_dur(
+def clip_vectors_to_target_dur(
     sample_id_vec: npt.NDArray,
     inds_in_sample_vec: npt.NDArray,
     target_dur: float,
@@ -1103,13 +1103,95 @@ FRAMES_DUR_AUDIO_DUR_RATIO = {
 }
 
 
-def sample_vecs_and_splits_df_from_splits_csv_path(
+# define here so we can use as a type hint
+@dataclasses.dataclass
+class TrainingReplicateMetadata:
+    biosound_group: str
+    id: str | None
+    frame_dur: float
+    unit: str
+    data_source: str | None
+    train_dur: float
+    replicate_num: int
+    splits_json_path: str
+
+
+def clip_split_vectors_to_target_dur(
+    metadata: TrainingReplicateMetadata,
+    split: str,
+    split_params: MakeSplitsParams,
+    split_df: pd.DataFrame,
+    sample_id_vec: npt.NDArray,
+    inds_in_sample_vec: npt.NDArray,
+) -> tuple[npt.NDArray, npt.NDArray]:
+    """Helper function that contains logic for clipping split to target duration, based on metadata and split params"""
+    # ---- to clip we need: target_dur, all_frame_labels_vec and labelmap
+    if metadata.data_source == "id-data-only":
+        if split == "train":
+            target_dur = split_params.train_subset_dur_id_only
+            logger.info(
+                f"Using split_params.train_subset_dur_id_only as target duration: {target_dur}"
+            )
+        elif split == "test":
+            target_dur = split_params.test_dur
+            logger.info(
+                f"Using split_params.test_dur as target duration: {target_dur}"
+            )
+        if (split_params.biosound_group == "Mouse-Pup-Call" and split_params.unit == "call"):
+            # "Mouse-Pup-Call" uses ID "all" for all IDs -- every multi-class model is trained to predict these IDs
+            # even though the training data for "id-only" does actually only contain data from a single species per dataset
+            # (that we treat as an ID)
+            # since we only have data from one ID, we don't want to require that the labels for all IDs be in the dataset
+            labelmap = None
+            all_frame_labels_vec = None
+        else:
+            labelmap = labels.get_labelmaps()[split_params.biosound_group][split_params.unit][metadata.id]
+            multi_frame_labels_paths = split_df.multi_frame_labels_path.values
+            all_frame_labels_vec = np.concatenate([
+                np.load(constants.DATASET_ROOT / frame_labels_path)
+                for frame_labels_path in multi_frame_labels_paths
+            ])
+    elif metadata.data_source == "leave-one-id-out":
+        if split == "train":
+            target_dur = metadata.train_dur
+            logger.info(
+                f"Using metadata.train_dur as target duration: {target_dur}"
+            )
+        elif split == "test":
+            target_dur = split_params.test_dur
+            logger.info(
+                f"Using split_params.test_dur as target duration: {target_dur}"
+            )
+        # we set these to None because we don't care about clipping for leave-one-ID-out -- we ignore classes
+        labelmap = None
+        all_frame_labels_vec = None
+
+    if split_params.biosound_group in FRAMES_DUR_AUDIO_DUR_RATIO:
+        # we scale target duration down with this ratio, see comments by the constant declaration above
+        target_dur *= FRAMES_DUR_AUDIO_DUR_RATIO[split_params.biosound_group]
+
+    sample_id_vec, inds_in_sample_vec = clip_vectors_to_target_dur(
+        sample_id_vec=sample_id_vec,
+        inds_in_sample_vec=inds_in_sample_vec,
+        target_dur=target_dur,
+        frame_dur=metadata.frame_dur / 1000.0,  # convert to s
+        all_frame_labels_vec=all_frame_labels_vec,
+        labelmap=labelmap,
+    )
+    return sample_id_vec, inds_in_sample_vec
+
+
+def make_vecs_and_splits_df_from_splits_csv_path(
         splits_csv_path: pathlib.Path,
         split_params: MakeSplitsParams,
-        ) -> pd.DataFrame:
+        ) -> tuple[dict[str, npt.NDArray], dict[str, npt.NDArray], pd.DataFrame]:
     """Given path to a csv file representing dataset splits,
-    use the paths to spectrograms from the csv file to 
-    build the vectors that map from an index in a window dataset to an index in a spectrogram"""
+    sort the splits so they can be clipped to a target duration,
+    then use the paths to spectrograms from the csv file to 
+    build the vectors that map from an index in a window dataset to an index in a spectrogram,
+    and finally return the vectors as dicts mapping split names to numpy arrays,
+    along with the sorted dataframe.
+    """
     logger.info(
         f"Loading DataFrame from splits_csv_path: {splits_csv_path}"
     )
@@ -1173,7 +1255,7 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
         inds_in_sample_vec = np.concatenate(inds_in_sample_vec)
 
         logger.info(
-            "Duration of split from sample id vectors (number of samples * frame duration), before clipping: "
+            "Duration of split from sample id vectors (number of samples * frame duration): "
             f"{sample_id_vec.shape[-1] * (metadata.frame_dur / 1000.0)}"
         )
 
@@ -1181,75 +1263,13 @@ def sample_vecs_and_splits_df_from_splits_csv_path(
             logger.info(
                 f"Will clip split to target duration"
             )
-            # ---- to clip we need: target_dur, all_frame_labels_vec and labelmap
-            if metadata.data_source == "id-data-only":
-                if split == "train":
-                    target_dur = split_params.train_subset_dur_id_only
-                    logger.info(
-                        f"Using split_params.train_subset_dur_id_only as target duration: {target_dur}"
-                    )
-                elif split == "test":
-                    target_dur = split_params.test_dur
-                    logger.info(
-                        f"Using split_params.test_dur as target duration: {target_dur}"
-                    )
-                if (split_params.biosound_group == "Mouse-Pup-Call" and split_params.unit == "call"):
-                    # "Mouse-Pup-Call" uses ID "all" for all IDs -- every multi-class model is trained to predict these IDs
-                    # even though the training data for "id-only" does actually only contain data from a single species per dataset
-                    # (that we treat as an ID)
-                    # since we only have data from one ID, we don't want to require that the labels for all IDs be in the dataset
-                    labelmap = None
-                    all_frame_labels_vec = None
-                else:
-                    labelmap = labels.get_labelmaps()[split_params.biosound_group][split_params.unit][metadata.id]
-                    multi_frame_labels_paths = split_df.multi_frame_labels_path.values
-                    all_frame_labels_vec = np.concatenate([
-                        np.load(constants.DATASET_ROOT / frame_labels_path)
-                        for frame_labels_path in multi_frame_labels_paths
-                    ])
-            elif "leave-one-id-out" in splits_csv_path.name:
-                if split == "train":
-                    target_dur = metadata.train_dur
-                    logger.info(
-                        f"Using metadata.train_dur as target duration: {target_dur}"
-                    )
-                elif split == "test":
-                    target_dur = split_params.test_dur
-                    logger.info(
-                        f"Using split_params.test_dur as target duration: {target_dur}"
-                    )
-                # we set these to None because we don't care about clipping for leave-one-ID-out -- we ignore classes
-                labelmap = None
-                all_frame_labels_vec = None
-            else:  # human speech data from TIMIT, doesn't have "leave-one-ID-out" or "id-data-only" in split csv filename
-                if split == "train":
-                    target_dur = metadata.train_dur
-                    logger.info(
-                        f"Using metadata.train_dur as target duration: {target_dur}"
-                    )
-                elif split == "test":
-                    target_dur = split_params.test_dur
-                    logger.info(
-                        f"Using split_params.test_dur as target duration: {target_dur}"
-                    )
-                multi_frame_labels_paths = split_df.multi_frame_labels_path.values
-                labelmap = labels.get_labelmaps()[split_params.biosound_group][split_params.unit]["all"]
-                all_frame_labels_vec = np.concatenate([
-                    np.load(constants.DATASET_ROOT / frame_labels_path)
-                    for frame_labels_path in multi_frame_labels_paths
-                ])
-
-            if split_params.biosound_group in FRAMES_DUR_AUDIO_DUR_RATIO:
-                # we scale target duration down with this ratio, see comments by the constant declaration above
-                target_dur *= FRAMES_DUR_AUDIO_DUR_RATIO[split_params.biosound_group]
-
-            sample_id_vec, inds_in_sample_vec = clip_to_target_dur(
-                sample_id_vec=sample_id_vec,
-                inds_in_sample_vec=inds_in_sample_vec,
-                target_dur=target_dur,
-                frame_dur=metadata.frame_dur / 1000.0,  # convert to s
-                all_frame_labels_vec=all_frame_labels_vec,
-                labelmap=labelmap,
+            sample_id_vec, inds_in_sample_vec = clip_split_vectors_to_target_dur(
+                metadata,
+                split,
+                split_params,
+                split_df,
+                sample_id_vec,
+                inds_in_sample_vec,
             )
 
         split_sample_id_vec_map[split] = sample_id_vec
@@ -1276,7 +1296,7 @@ def save_vecs_and_make_json_from_csv_paths(
     split_params: MakeSplitsParams,
     dry_run=True,
 ):
-    """Given paths to csv files representing dataset splits,
+    """Given paths to csv files representing the dataset splits for a training replicate,
     use the paths to spectrograms from those csv files to 
     build the vectors that map from an index in a window dataset to an index in a spectrogram,
     and make a json metadata file for each csv file 
@@ -1296,7 +1316,7 @@ def save_vecs_and_make_json_from_csv_paths(
         (split_sample_id_vec_map,
          split_inds_in_sample_vec_map,
          splits_df_out
-        ) = sample_vecs_and_splits_df_from_splits_csv_path(
+        ) = make_vecs_and_splits_df_from_splits_csv_path(
             splits_csv_path,
             split_params,
         )
@@ -1345,18 +1365,6 @@ def save_vecs_and_make_json_from_csv_paths(
             with splits_path_json_path.open('w') as fp:
                 json.dump(splits_path_json_dict, fp, indent=4)
     return splits_path_json_paths
-
-
-@dataclasses.dataclass
-class TrainingReplicateMetadata:
-    biosound_group: str
-    id: str | None
-    frame_dur: float
-    unit: str
-    data_source: str | None
-    train_dur: float
-    replicate_num: int
-    splits_json_path: str
 
 
 def metadata_from_splits_json_path(splits_json_path: pathlib.Path) -> TrainingReplicateMetadata:
@@ -1492,9 +1500,9 @@ def make_splits_all(
         for params in split_params_list:
             params_dict = dataclasses.asdict(params)
             params_dict['dry_run'] = dry_run
-            replicate_csv_paths = make_splits_per_id(**params_dict)
+            splits_csv_paths = make_splits_per_id(**params_dict)
             splits_path_json_paths = save_vecs_and_make_json_from_csv_paths(
-                replicate_csv_paths, 
+                splits_csv_paths, 
                 params,
                 dry_run,
             )
