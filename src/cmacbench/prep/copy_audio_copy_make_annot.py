@@ -1,5 +1,5 @@
 """
-Helper functinos for stage 1 of making BioSoundSegBench dataset:
+Helper functinos for stage 1 of making CMACBench dataset:
 1. copy raw audio
 2. copy annotations if they are in the SimpleSeq format already;
 convert annotations if they are in another format;
@@ -661,7 +661,7 @@ class ClipPhones:
 # from collections import Counter
 
 # talker_dirs = sorted(
-#     biosoundsegbench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE.glob('Buckeye-corpus-s*')
+#     CMACBench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE.glob('Buckeye-corpus-s*')
 # )
 
 # talker_count_map = {}

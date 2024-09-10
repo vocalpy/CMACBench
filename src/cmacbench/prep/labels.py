@@ -157,7 +157,7 @@ def set_to_map(group_unit_id_labelsets_map):
 
 def make_labelsets_and_labelmaps(dry_run=True):
     """Make labelsets and labelmaps from labelsets,
-    then save as json files in BioSoundSegBench dataset root.
+    then save as json files in CMACBench dataset root.
 
     These have two purposes:
     1. Labelsets are used to filter files so we keep only those

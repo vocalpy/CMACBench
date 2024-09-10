@@ -94,7 +94,7 @@ BUCKEYE_ROOT = SPEECH_RAW_DATA / "buckeye-corpus"
 
 # ---- root for dataset we are making,
 # and species-specific sub-dirs
-DATASET_ROOT = DATA_DIR / "BioSoundSegBench"
+DATASET_ROOT = DATA_DIR / "CMACBench"
 
 # ---- all the data from datasets with unpermissive licenses goes here
 DATA_WE_CANT_SHARE = DATASET_ROOT / "DATA-WE-CANT-SHARE"

@@ -643,7 +643,7 @@ def make_inputs_targets_jourjine_et_al_2023_id(id_dir, labelmap, unit='call', dr
     except FileNotFoundError:
         raise FileNotFoundError(
             "File missing from raw directory that is needed for the function "
-            "`biosoundsegbench.prep.make_inputs_and_targets.make_inputs_targets_jourjine_et_al_2023_id`. "
+            "`CMACBench.prep.make_inputs_and_targets.make_inputs_targets_jourjine_et_al_2023_id`. "
             f"The file is:\n{JOURJINE_ET_AL_2023_NOISE_FLOOR_CSV}."
             "Please obtain this file from the source dataset: https://datadryad.org/stash/dataset/doi:10.5061/dryad.g79cnp5ts"
         )

@@ -1,4 +1,4 @@
-"""CLI parser for prep_biosoundsegbench script"""
+"""CLI parser for prep_CMACBench script"""
 import argparse
 
 from . import constants

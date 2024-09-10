@@ -704,7 +704,7 @@ def get_timit_train_data_dirs():
     """Get list of directories with training data for TIMIT.
 
     Each directory contains data from one speaker from one dialect region.
-    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE`.
+    The directories are sub-directories in :data:`CMACBench.prep.constants.HUMAN_SPEECH_WE_CANT_SHARE`.
     The source data is from the full TIMIT corpus, minus the speakers that appear
     in the NLTK sample, that is used for testing.
     """
@@ -719,7 +719,7 @@ def get_timit_test_data_dirs():
     """Get list of directories with test data for TIMIT.
 
     Each directory contains data from one speaker from one dialect region.
-    The directories are sub-directories in :data:`biosoundsegbench.prep.constants.SPEECH_DATA_DST`.
+    The directories are sub-directories in :data:`CMACBench.prep.constants.SPEECH_DATA_DST`.
     The source data is from the NLTK Sample of the TIMIT corpus.
     """
     return sorted(

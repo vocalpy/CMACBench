@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def mkdirs(dry_run=True):
-    """Make BioSoundSegBench directories"""
+    """Make CMACBench directories"""
     logger.info(
         f"Making directory DATASET_ROOT: {constants.DATASET_ROOT}"
     )

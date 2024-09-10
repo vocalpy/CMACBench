@@ -1,4 +1,4 @@
-"""Functions for 'clean' stage of BioSoundSegBench dataset"""
+"""Functions for 'clean' stage of CMACBench dataset"""
 import logging
 import shutil
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def clean(dry_run=True):
     """Removes all generated directories:
-    BioSoundSegBench and DATA_WE_CANT_SHARE"""
+    CMACBench and DATA_WE_CANT_SHARE"""
     logger.info(
         f"Removing DATASET_ROOT: {constants.DATASET_ROOT}"
     )
