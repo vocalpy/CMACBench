@@ -1,6 +1,9 @@
-# BioSoundSegBench
+# CMACBench
+## The Computational Methods for Acoustic Communication Benchmark
 
-Code for the BioSoundSegBench dataset
+This project hosts the code and documentation for the Computational methods for Acoustic Communcation Benchmark (CMACBench).
+
+CMACBench builds on and extends publicly available datasets, to provide benchmarks for methods used by researchers that study how animals communicate with sound.
 
 ## Set-up
 
