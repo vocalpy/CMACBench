@@ -1,5 +1,9 @@
 import pathlib
 
+
+PROJROOT = pathlib.Path(__file__).parents[3]
+
+
 # ---- constants for argparser -----------------------------------------------
 PREP_STAGES = (
     "all",
@@ -23,7 +27,8 @@ BIOSOUND_GROUPS = (
 
 
 # ---- directories -----------------------------------------------------------
-DATA_DIR = pathlib.Path('./data')
+# we assume the datasets always gets built inside the data dir of the project root
+DATA_DIR = PROJROOT / './data'
 
 # ---- raw data root, and species-specific raw data dirs
 RAW_DATA_ROOT = DATA_DIR / "raw"
