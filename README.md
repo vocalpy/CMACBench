@@ -24,8 +24,8 @@ It will be easiest to set up in a similar Linux environment (e.g., Ubuntu).
 1. Clone this repository with git:
 
 ```
-git clone git@github.com:vocalpy/BioSoundSegBench.git
-cd BioSoundSegBench
+git clone git@github.com:vocalpy/CMACBench.git
+cd CMACBench
 ```
 
 2. Set up the virtual environment with the code installed into it:
