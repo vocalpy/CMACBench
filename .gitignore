@@ -7,8 +7,7 @@
 .vscode/settings.json
 
 # data + results
-data/BioSoundSegBench
-data/DATA-WE-CANT-SHARE
+data/CMACBench
 data/raw
 data/prep/
 results/analysis/
