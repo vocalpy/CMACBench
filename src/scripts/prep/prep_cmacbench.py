@@ -10,7 +10,7 @@ Stage = Literal[
 ]
 
 
-logger = logging.getLogger('biosoundsegbench')  # 'base' logger
+logger = logging.getLogger('cmacbench')  # 'base' logger
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(formatter)
