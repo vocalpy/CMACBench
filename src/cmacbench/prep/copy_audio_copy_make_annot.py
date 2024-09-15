@@ -1,5 +1,5 @@
 """
-Helper functinos for stage 1 of making CMACBench dataset:
+Helper functions for stage 1 of making CMACBench dataset:
 1. copy raw audio
 2. copy annotations if they are in the SimpleSeq format already;
 convert annotations if they are in another format;
@@ -438,25 +438,14 @@ def make_clips_from_jourjine_et_al_2023(
         )
 
     records = []
-    for clip_num, (start_time, stop_time, start_ind, stop_ind) in enumerate(
-        zip(clip_start_times, clip_stop_times, clip_start_inds, clip_stop_inds)
+    clip_num = 1
+    for start_time, stop_time, start_ind, stop_ind in zip(
+        clip_start_times, clip_stop_times, clip_start_inds, clip_stop_inds
     ):
-        records.append(
-            {
-                'source_file': sample.source_file,
-                'clip_num': clip_num,
-                'start_time': start_time,
-                'stop_time': stop_time,
-                'start_ind': start_ind,
-                'stop_ind': stop_ind,
-            }
-        )
         clip_sound = voc.Sound(
             data=sound.data[..., start_ind:stop_ind + 1],
             samplerate=sound.samplerate,
         )
-        clip_wav_path = sample.species_id_dst / f"{sample.wav_path.stem}.clip-{clip_num}.wav"
-        clip_sound.write(clip_wav_path)
 
         # N.B.: we *re-segment* because in spite of careful book-keeping above,
         # the ava segmentation algorithm can give us slightly different segemnt boundaries
@@ -469,16 +458,38 @@ def make_clips_from_jourjine_et_al_2023(
             clip_sound,
             **voc.segment.JOURJINEETAL2023
         )
+        if len(clip_segments.start_times) < 1:
+            # then there are no segments
+            logger.info(
+                f"Skipping clip {clip_num}, no segments."
+            )
+            continue
+
         clip_simple_seq = crowsetta.formats.seq.SimpleSeq(
             onsets_s=clip_segments.start_times,
             offsets_s=clip_segments.stop_times,
             labels=np.array([sample.segment_label] * clip_segments.start_times.size),
             annot_path='dummy',
         )
+
+        clip_wav_path = sample.species_id_dst / f"{sample.wav_path.stem}.clip-{clip_num}.wav"
+        clip_sound.write(clip_wav_path)
         clip_csv_path = clip_wav_path.parent / (
             clip_wav_path.name + ".call.csv"
         )
         clip_simple_seq.to_file(clip_csv_path)
+        records.append(
+            {
+                'source_file': sample.source_file,
+                'clip_num': clip_num,
+                'start_time': start_time,
+                'stop_time': stop_time,
+                'start_ind': start_ind,
+                'stop_ind': stop_ind,
+            }
+        )
+        clip_num += 1
+
     all_clips_df = pd.DataFrame.from_records(records)
     all_clips_csv_path = sample.species_id_dst / (sample.wav_path.name + ".clip-times.csv")
     all_clips_df.to_csv(all_clips_csv_path)
