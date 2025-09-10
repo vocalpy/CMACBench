@@ -19,34 +19,34 @@ logger.setLevel('INFO')
 
 
 
-def prep_biosoundsegbench(
+def prep_cmacbench(
         stage: Stage = 'all',
         biosound_groups: list = cmacbench.prep.constants.BIOSOUND_GROUPS,
         dry_run: bool = True,
 ):
-    """Main function that prepares BioSoundSegBench dataset"""
+    """Main function that prepares cmacBench dataset"""
     logger.info(
-        "Preparing BioSoundSegBench dataset.\n"
+        "Preparing cmacBench dataset.\n"
         f"Stage: {stage}\n"
         f"Dry run: {dry_run}\n"
     )
     if stage == "clean":
         logger.info(
-            "Stage was 'clean', will remove BioSoundSegBench directory and return."
+            "Stage was 'clean', will remove cmacBench directory and return."
         )
         cmacbench.prep.clean(dry_run)
         return
 
     if stage =='mkdirs' or stage == 'all':
         logger.info(
-            f"Stage was '{stage}', will make directories for BioSoundSegBench dataset."
+            f"Stage was '{stage}', will make directories for cmacBench dataset."
         )
         # ---- make all the directories
         cmacbench.prep.mkdirs(dry_run)
 
     if stage =='copy' or stage == 'all':
         logger.info(
-            f"Stage was '{stage}', will copy raw audio into BioSoundSegBench dataset, and copy/convert/generate annotations as needed."
+            f"Stage was '{stage}', will copy raw audio into cmacBench dataset, and copy/convert/generate annotations as needed."
         )
         # ---- copy the raw audio, copy/convert/generate annotations
         cmacbench.prep.copy_audio_copy_make_annot_all(biosound_groups, dry_run)
@@ -81,7 +81,7 @@ def prep_biosoundsegbench(
 parser = cmacbench.prep.parser.get_parser()
 args = parser.parse_args()
 
-prep_biosoundsegbench(
+prep_cmacbench(
     stage=args.stage,
     biosound_groups=args.biosound_groups,
     dry_run=args.dry_run,
